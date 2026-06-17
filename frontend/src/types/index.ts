@@ -104,10 +104,18 @@ export interface Fitting {
   dressName: string
   userName: string
   fitScore: number
-  qualityScore: number
+  comfortScore: number
+  overallSatisfaction: number
   overallScore: number
+  qualityScore: number
+  bustFit?: string
+  waistFit?: string
+  hipFit?: string
+  lengthFit?: string
   comment: string
+  feedback: string
   suggestions: string
+  willRentAgain?: boolean
   createdAt: string
 }
 
@@ -123,16 +131,26 @@ export interface ReturnRecord {
   rentalId: string
   dressId: string
   dressName: string
+  userName?: string
   returnDate: string
+  expectedReturnDate?: string
+  isLate?: boolean
+  lateDays?: number
+  lateFee?: number
   accessories: ReturnAccessory[]
-  cleaningStatus: 'clean' | 'need_wash' | 'damaged' | 'sent_out'
+  accessoriesComplete?: boolean
+  damages?: { location: string; description: string; severity: string; isNew: boolean; deductionAmount: number }[]
+  cleaningStatus: 'clean' | 'need_wash' | 'needs_cleaning' | 'needs_professional_cleaning' | 'damaged' | 'sent_out'
   cleaningCost: number
   damageDeduction: number
   totalDamageDeduction: number
   totalAccessoriesDeduction: number
   totalDeduction: number
   refundAmount: number
+  depositAmount?: number
   notes: string
+  inspector?: string
+  status?: string
   createdAt: string
 }
 

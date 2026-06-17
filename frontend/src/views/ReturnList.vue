@@ -27,7 +27,7 @@
         <el-table-column label="洗护状态" width="100">
           <template #default="{ row }">
             <el-tag :type="getCleaningStatusType(row.cleaningStatus)">
-              {{ getCleaningStatusText(row.cleaningStatus) }}
+              {{ row.cleaningStatus }}
             </el-tag>
           </template>
         </el-table-column>
@@ -38,8 +38,8 @@
         </el-table-column>
         <el-table-column label="损坏扣减" width="100">
           <template #default="{ row }">
-            <span :class="{ 'text-red': row.damageDeduction > 0 }">
-              ¥{{ row.damageDeduction }}
+            <span :class="{ 'text-red': row.totalDamageDeduction > 0 }">
+              ¥{{ row.totalDamageDeduction }}
             </span>
           </template>
         </el-table-column>
@@ -134,7 +134,8 @@
         <el-form-item label="洗护状态" prop="cleaningStatus">
           <el-radio-group v-model="formData.cleaningStatus">
             <el-radio value="clean">干净无需洗护</el-radio>
-            <el-radio value="need_wash">需要洗护</el-radio>
+            <el-radio value="needs_cleaning">需要常规洗护</el-radio>
+            <el-radio value="needs_professional_cleaning">需要专业洗护</el-radio>
             <el-radio value="damaged">有损坏</el-radio>
             <el-radio value="sent_out">已送洗</el-radio>
           </el-radio-group>
@@ -173,12 +174,12 @@
         <el-descriptions-item label="归还日期">{{ currentDetail.returnDate }}</el-descriptions-item>
         <el-descriptions-item label="洗护状态">
           <el-tag :type="getCleaningStatusType(currentDetail.cleaningStatus)">
-            {{ getCleaningStatusText(currentDetail.cleaningStatus) }}
+            {{ currentDetail.cleaningStatus }}
           </el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="洗护费用">¥{{ currentDetail.cleaningCost }}</el-descriptions-item>
         <el-descriptions-item label="损坏扣减">
-          <span style="color: #f56c6c">¥{{ currentDetail.damageDeduction }}</span>
+          <span style="color: #f56c6c">¥{{ currentDetail.totalDamageDeduction }}</span>
         </el-descriptions-item>
         <el-descriptions-item label="配件扣减">
           <span style="color: #f56c6c">¥{{ currentDetail.totalAccessoriesDeduction }}</span>
@@ -257,10 +258,17 @@ const inProgressRentals = computed(() => {
 
 function getCleaningStatusType(status: string) {
   const map: Record<string, string> = {
-    clean: 'success',
-    need_wash: 'warning',
-    damaged: 'danger',
-    sent_out: 'info'
+    '干净': 'success',
+    'clean': 'success',
+    '需洗护': 'warning',
+    'need_wash': 'warning',
+    'needs_cleaning': 'warning',
+    '需专业洗护': 'danger',
+    'needs_professional_cleaning': 'danger',
+    '损坏': 'danger',
+    'damaged': 'danger',
+    '已送洗': 'info',
+    'sent_out': 'info'
   }
   return map[status] || 'info'
 }
@@ -269,6 +277,8 @@ function getCleaningStatusText(status: string) {
   const map: Record<string, string> = {
     clean: '干净',
     need_wash: '需洗护',
+    needs_cleaning: '需洗护',
+    needs_professional_cleaning: '需专业洗护',
     damaged: '损坏',
     sent_out: '已送洗'
   }

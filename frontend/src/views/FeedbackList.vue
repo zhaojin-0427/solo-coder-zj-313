@@ -36,19 +36,19 @@
       >
         <el-table-column prop="dressName" label="裙子名称" width="150" />
         <el-table-column prop="userName" label="用户" width="120" />
-        <el-table-column label="综合评分" width="120">
+        <el-table-column label="综合评分" width="150">
           <template #default="{ row }">
-            <el-rate v-model="row.overallScore" disabled show-text />
+            <el-rate :model-value="row.overallScore" disabled show-text />
           </template>
         </el-table-column>
         <el-table-column label="合身度" width="120">
           <template #default="{ row }">
-            <el-rate v-model="row.fitScore" disabled />
+            <el-rate :model-value="row.fitScore" disabled />
           </template>
         </el-table-column>
         <el-table-column label="质量" width="120">
           <template #default="{ row }">
-            <el-rate v-model="row.qualityScore" disabled />
+            <el-rate :model-value="row.qualityScore" disabled />
           </template>
         </el-table-column>
         <el-table-column prop="comment" label="评价" min-width="200" show-overflow-tooltip />
@@ -133,13 +133,13 @@
         <el-descriptions-item label="用户">{{ currentDetail.userName }}</el-descriptions-item>
         <el-descriptions-item label="反馈时间" :span="2">{{ currentDetail.createdAt }}</el-descriptions-item>
         <el-descriptions-item label="综合评分" :span="2">
-          <el-rate v-model="currentDetail.overallScore" disabled show-text />
+          <el-rate :model-value="currentDetail.overallScore" disabled show-text />
         </el-descriptions-item>
         <el-descriptions-item label="合身度">
-          <el-rate v-model="currentDetail.fitScore" disabled />
+          <el-rate :model-value="currentDetail.fitScore" disabled />
         </el-descriptions-item>
         <el-descriptions-item label="质量">
-          <el-rate v-model="currentDetail.qualityScore" disabled />
+          <el-rate :model-value="currentDetail.qualityScore" disabled />
         </el-descriptions-item>
         <el-descriptions-item label="评价" :span="2">
           {{ currentDetail.comment }}
