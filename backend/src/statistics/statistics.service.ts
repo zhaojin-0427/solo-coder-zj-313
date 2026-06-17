@@ -3,6 +3,7 @@ import { DressesService } from '../dresses/dresses.service';
 import { RentalsService } from '../rentals/rentals.service';
 import { ReturnsService } from '../returns/returns.service';
 import { FittingsService } from '../fittings/fittings.service';
+import { DisputesService } from '../disputes/disputes.service';
 
 @Injectable()
 export class StatisticsService {
@@ -11,6 +12,7 @@ export class StatisticsService {
     private readonly rentalsService: RentalsService,
     private readonly returnsService: ReturnsService,
     private readonly fittingsService: FittingsService,
+    private readonly disputesService: DisputesService,
   ) {}
 
   getOverview() {
@@ -190,5 +192,9 @@ export class StatisticsService {
       averageCommissionRate: parseFloat((avgCommissionRate * 100).toFixed(1)),
       details: consignmentStats,
     };
+  }
+
+  getDisputeStats() {
+    return this.disputesService.getDisputeStats();
   }
 }

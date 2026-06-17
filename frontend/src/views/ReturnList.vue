@@ -2,15 +2,24 @@
   <div class="return-page">
     <div class="page-header">
       <h2>归还验收</h2>
-      <el-button type="primary" @click="handleAdd">
-        <el-icon><Plus /></el-icon>
-        新增归还
-      </el-button>
+      <div class="header-actions">
+        <el-select v-model="filterStatus" placeholder="状态筛选" clearable style="width: 140px; margin-right: 12px" @change="handleFilterChange">
+          <el-option label="全部" value="" />
+          <el-option label="待处理" value="pending" />
+          <el-option label="验收中" value="inspecting" />
+          <el-option label="已完成" value="completed" />
+          <el-option label="有争议" value="disputed" />
+        </el-select>
+        <el-button type="primary" @click="handleAdd">
+          <el-icon><Plus /></el-icon>
+          新增归还
+        </el-button>
+      </div>
     </div>
 
     <el-card class="table-card">
       <el-table
-        :data="returnStore.returnList"
+        :data="filteredReturnList"
         v-loading="returnStore.loading"
         stripe
         border
@@ -55,6 +64,21 @@
             ¥{{ row.refundAmount }}
           </template>
         </el-table-column>
+        <el-table-column label="争议" width="90" align="center">
+          <template #default="{ row }">
+            <el-tag
+              v-if="getDisputeForReturn(row.id)"
+              :type="getDisputeStatusType(getDisputeForReturn(row.id).reviewStatus)"
+              effect="dark"
+              size="small"
+              class="dispute-tag"
+              @click="handleViewDispute(getDisputeForReturn(row.id)!)"
+            >
+              {{ getDisputeStatusLabel(getDisputeForReturn(row.id).reviewStatus) }}
+            </el-tag>
+            <span v-else style="color: #c0c4cc">—</span>
+          </template>
+        </el-table-column>
         <el-table-column label="操作" width="100" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="handleView(row)">详情</el-button>
@@ -66,7 +90,7 @@
     <el-dialog
       v-model="dialogVisible"
       title="新增归还记录"
-      width="650px"
+      width="720px"
       @close="handleDialogClose"
     >
       <el-form
@@ -77,19 +101,19 @@
       >
         <el-form-item label="选择预约" prop="rentalId">
           <el-select
-            v-model="formData.rentalId"
-            placeholder="请选择进行中的预约"
-            style="width: 100%"
-            @change="handleRentalChange"
-          >
-            <el-option
-              v-for="r in inProgressRentals"
-              :key="r.id"
-              :label="r.dressName + ' - ' + r.userInfo?.name"
-              :value="r.id"
-            />
-          </el-select>
-        </el-form-item>
+          v-model="formData.rentalId"
+          placeholder="请选择进行中的预约"
+          style="width: 100%"
+          @change="handleRentalChange"
+        >
+          <el-option
+            v-for="r in inProgressRentals"
+            :key="r.id"
+            :label="r.dressName + ' - ' + r.userInfo?.name"
+            :value="r.id"
+          />
+        </el-select>
+      </el-form-item>
         <el-form-item label="归还日期" prop="returnDate">
           <el-date-picker
             v-model="formData.returnDate"
@@ -97,8 +121,13 @@
             placeholder="请选择归还日期"
             value-format="YYYY-MM-DD"
             style="width: 100%"
+            @change="calculateLateFee"
           />
         </el-form-item>
+        <el-form-item label="验收人" prop="inspector">
+          <el-input v-model="formData.inspector" placeholder="请输入验收人姓名" />
+        </el-form-item>
+
         <el-divider content-position="left">配件核对</el-divider>
         <el-form-item label="配件清单">
           <div class="accessory-list">
@@ -107,7 +136,7 @@
               :key="index"
               class="accessory-item"
             >
-              <el-checkbox v-model="item.isComplete" @change="handleAccessoryChange">
+              <el-checkbox v-model="item.isComplete" @change="() => handleAccessoryChange(item)">
                 {{ item.name }}
               </el-checkbox>
               <el-select
@@ -121,6 +150,15 @@
                 <el-option label="损坏" value="损坏" />
                 <el-option label="遗失" value="遗失" />
               </el-select>
+              <el-input-number
+                v-model="item.deductionAmount"
+                size="small"
+                :min="0"
+                :step="10"
+                :disabled="item.isComplete"
+                style="width: 100px"
+              />
+              <span style="font-size: 12px; color: #909399">扣减</span>
               <el-input
                 v-model="item.notes"
                 size="small"
@@ -130,22 +168,95 @@
             </div>
           </div>
         </el-form-item>
-        <el-divider content-position="left">洗护状态</el-divider>
+
+        <el-divider content-position="left">瑕疵检查</el-divider>
+        <el-form-item label="瑕疵记录">
+          <div class="damage-list">
+            <div
+              v-for="(item, index) in formData.damages"
+              :key="index"
+              class="damage-item"
+            >
+              <el-input
+                v-model="item.location"
+                size="small"
+                placeholder="部位"
+                style="width: 100px"
+              />
+              <el-input
+                v-model="item.description"
+                size="small"
+                placeholder="描述"
+                style="width: 140px"
+              />
+              <el-select
+                v-model="item.severity"
+                size="small"
+                placeholder="严重程度"
+                style="width: 100px"
+              >
+                <el-option label="轻微" value="minor" />
+                <el-option label="中等" value="moderate" />
+                <el-option label="严重" value="major" />
+              </el-select>
+              <el-checkbox v-model="item.isNew" size="small">新增</el-checkbox>
+              <el-input-number
+                v-model="item.deductionAmount"
+                size="small"
+                :min="0"
+                :step="10"
+                style="width: 90px"
+              />
+              <el-button
+                link
+                type="danger"
+                size="small"
+                @click="removeDamage(index)"
+              >
+                删除
+              </el-button>
+            </div>
+            <el-button type="primary" size="small" plain @click="addDamage">
+              <el-icon><Plus /></el-icon>
+              添加瑕疵
+            </el-button>
+          </div>
+        </el-form-item>
+
+        <el-divider content-position="left">洗护与逾期</el-divider>
         <el-form-item label="洗护状态" prop="cleaningStatus">
           <el-radio-group v-model="formData.cleaningStatus">
             <el-radio value="clean">干净无需洗护</el-radio>
             <el-radio value="needs_cleaning">需要常规洗护</el-radio>
             <el-radio value="needs_professional_cleaning">需要专业洗护</el-radio>
-            <el-radio value="damaged">有损坏</el-radio>
-            <el-radio value="sent_out">已送洗</el-radio>
           </el-radio-group>
         </el-form-item>
         <el-form-item label="洗护费用" prop="cleaningCost">
           <el-input-number v-model="formData.cleaningCost" :min="0" :step="10" />
         </el-form-item>
-        <el-divider content-position="left">押金处理</el-divider>
-        <el-form-item label="损坏扣减" prop="damageDeduction">
-          <el-input-number v-model="formData.damageDeduction" :min="0" :step="50" />
+        <el-form-item label="逾期费用" prop="lateFee">
+          <el-input-number v-model="formData.lateFee" :min="0" :step="10" />
+          <span style="margin-left: 8px; font-size: 12px; color: #909399">
+            {{ lateDays > 0 ? `逾期 ${lateDays} 天` : '未逾期' }}
+          </span>
+        </el-form-item>
+
+        <el-divider content-position="left">说明与备注</el-divider>
+        <el-form-item label="顾客说明" prop="customerNote">
+          <el-input
+            v-model="formData.customerNote"
+            type="textarea"
+            :rows="2"
+            placeholder="请输入顾客说明"
+          />
+        </el-form-item>
+        <el-form-item label="店员备注" prop="staffNote">
+          <el-input
+            v-model="formData.staffNote"
+            type="textarea"
+            :rows="2"
+            placeholder="请输入店员备注"
+          />
         </el-form-item>
         <el-form-item label="备注" prop="notes">
           <el-input
@@ -155,11 +266,20 @@
             placeholder="请输入备注信息"
           />
         </el-form-item>
+
         <el-alert
-          :title="'预计退款: ¥' + refundAmount"
+          :title="refundAlertText"
           type="info"
           :closable="false"
           show-icon
+        />
+
+        <el-alert
+          v-if="disputeWarning"
+          type="warning"
+          :closable="false"
+          show-icon
+          title="本次归还涉及争议金额，提交后将自动生成争议记录"
         />
       </el-form>
       <template #footer>
@@ -168,7 +288,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="detailVisible" title="归还详情" width="600px">
+    <el-dialog v-model="detailVisible" title="归还详情" width="700px">
       <el-descriptions v-if="currentDetail" :column="2" border>
         <el-descriptions-item label="裙子名称">{{ currentDetail.dressName }}</el-descriptions-item>
         <el-descriptions-item label="归还日期">{{ currentDetail.returnDate }}</el-descriptions-item>
@@ -204,11 +324,168 @@
               <el-tag :type="item.isComplete ? 'success' : 'danger'" size="small">
                 {{ item.isComplete ? item.condition : '遗失' }}
               </el-tag>
+              <span v-if="item.deductionAmount && item.deductionAmount > 0" style="color: #f56c6c; font-size: 12px">
+                扣¥{{ item.deductionAmount }}
+              </span>
               <span v-if="item.notes" style="color: #909399; font-size: 12px">{{ item.notes }}</span>
             </div>
           </div>
         </el-descriptions-item>
+        <el-descriptions-item v-if="currentDetail.damages && currentDetail.damages.length > 0" label="瑕疵记录" :span="2">
+          <div class="damage-detail">
+            <div
+              v-for="(item, index) in currentDetail.damages"
+              :key="index"
+              class="damage-detail-item"
+            >
+              <el-tag size="small" :type="item.isNew ? 'danger' : 'info'">
+                {{ item.isNew ? '新增' : '原有' }}
+              </el-tag>
+              <span style="font-weight: 500">{{ item.location }}</span>
+              <span style="color: #606266">{{ item.description }}</span>
+              <el-tag size="small" type="warning">{{ getSeverityLabel(item.severity) }}</el-tag>
+              <span style="color: #f56c6c">扣¥{{ item.deductionAmount }}</span>
+            </div>
+          </div>
+        </el-descriptions-item>
       </el-descriptions>
+
+      <div v-if="currentDetailDispute" class="dispute-section">
+        <el-divider content-position="left">
+          <el-tag type="warning" effect="dark" size="small">争议记录</el-tag>
+        </el-divider>
+        <el-descriptions :column="2" border size="small">
+          <el-descriptions-item label="复核状态" :span="2">
+            <el-tag :type="getDisputeStatusType(currentDetailDispute.reviewStatus)" effect="dark">
+              {{ getDisputeStatusLabel(currentDetailDispute.reviewStatus) }}
+            </el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="触发原因" :span="2">
+            <div class="trigger-list">
+              <el-tag
+                v-for="(reason, idx) in currentDetailDispute.triggerReasons"
+                :key="idx"
+                :type="getTriggerTypeColor(reason.type)"
+                size="small"
+                style="margin: 2px 4px 2px 0"
+              >
+                {{ reason.description }}
+              </el-tag>
+            </div>
+          </el-descriptions-item>
+          <el-descriptions-item label="关联裙子">{{ currentDetailDispute.dressName }}</el-descriptions-item>
+          <el-descriptions-item label="关联预约">{{ currentDetailDispute.rentalId }}</el-descriptions-item>
+          <el-descriptions-item label="扣减明细" :span="2">
+            <div class="deduction-list">
+              <div v-for="(d, idx) in currentDetailDispute.deductionDetails" :key="idx" class="deduction-item">
+                <span class="deduction-category">{{ getCategoryLabel(d.category) }}</span>
+                <span>{{ d.itemName }}</span>
+                <span style="color: #f56c6c; font-weight: 500">¥{{ d.amount }}</span>
+                <span style="color: #909399; font-size: 12px">{{ d.description }}</span>
+              </div>
+            </div>
+          </el-descriptions-item>
+          <el-descriptions-item label="原押金">¥{{ currentDetailDispute.originalDeposit }}</el-descriptions-item>
+          <el-descriptions-item label="原扣减">¥{{ currentDetailDispute.originalTotalDeduction }}</el-descriptions-item>
+          <el-descriptions-item label="原退款">¥{{ currentDetailDispute.originalRefundAmount }}</el-descriptions-item>
+          <el-descriptions-item label="当前退款">
+            <span style="color: #e6a23c; font-weight: 600">¥{{ currentDetailDispute.currentRefundAmount }}</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="顾客说明" :span="2">
+            {{ currentDetailDispute.customerNote || '无' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="店员备注" :span="2">
+            {{ currentDetailDispute.staffNote || '无' }}
+          </el-descriptions-item>
+          <el-descriptions-item v-if="currentDetailDispute.reviewConclusion" label="复核结论" :span="2">
+            {{ currentDetailDispute.reviewConclusion }}
+          </el-descriptions-item>
+          <el-descriptions-item v-if="currentDetailDispute.reviewOperator" label="复核人">
+            {{ currentDetailDispute.reviewOperator }}
+          </el-descriptions-item>
+          <el-descriptions-item v-if="currentDetailDispute.reviewDate" label="复核日期">
+            {{ currentDetailDispute.reviewDate }}
+          </el-descriptions-item>
+        </el-descriptions>
+
+        <div v-if="currentDetailDispute.reviewStatus === 'pending'" class="review-actions">
+          <el-button type="success" @click="openReviewDialog('approved')">通过复核</el-button>
+          <el-button type="danger" @click="openReviewDialog('rejected')">驳回争议</el-button>
+        </div>
+      </div>
+    </el-dialog>
+
+    <el-dialog v-model="reviewDialogVisible" title="争议复核" width="500px">
+      <el-form ref="reviewFormRef" :model="reviewFormData" :rules="reviewFormRules" label-width="100px">
+        <el-form-item label="复核结果">
+          <el-tag :type="reviewFormData.reviewStatus === 'approved' ? 'success' : 'danger'" effect="dark">
+            {{ reviewFormData.reviewStatus === 'approved' ? '通过' : '驳回' }}
+          </el-tag>
+        </el-form-item>
+        <el-form-item label="复核结论" prop="reviewConclusion">
+          <el-input
+            v-model="reviewFormData.reviewConclusion"
+            type="textarea"
+            :rows="3"
+            placeholder="请输入复核结论"
+          />
+        </el-form-item>
+        <el-form-item label="调整退款" prop="adjustedRefundAmount">
+          <el-input-number
+            v-model="reviewFormData.adjustedRefundAmount"
+            :min="0"
+            :step="50"
+            style="width: 100%"
+          />
+          <div style="color: #909399; font-size: 12px; margin-top: 4px">
+            原退款金额：¥{{ reviewingDispute?.originalRefundAmount || 0 }}
+          </div>
+        </el-form-item>
+        <el-form-item label="复核人" prop="reviewOperator">
+          <el-input v-model="reviewFormData.reviewOperator" placeholder="请输入复核人姓名" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="reviewDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleReviewSubmit">确认提交</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="disputeDetailVisible" title="争议详情" width="600px">
+      <template v-if="currentDisputeDetail">
+        <el-descriptions :column="2" border size="small">
+          <el-descriptions-item label="复核状态" :span="2">
+            <el-tag :type="getDisputeStatusType(currentDisputeDetail.reviewStatus)" effect="dark">
+              {{ getDisputeStatusLabel(currentDisputeDetail.reviewStatus) }}
+            </el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="裙子名称">{{ currentDisputeDetail.dressName }}</el-descriptions-item>
+          <el-descriptions-item label="顾客">{{ currentDisputeDetail.userName }}</el-descriptions-item>
+          <el-descriptions-item label="触发原因" :span="2">
+            <div class="trigger-list">
+              <el-tag
+                v-for="(reason, idx) in currentDisputeDetail.triggerReasons"
+                :key="idx"
+                :type="getTriggerTypeColor(reason.type)"
+                size="small"
+                style="margin: 2px 4px 2px 0"
+              >
+                {{ reason.description }}
+              </el-tag>
+            </div>
+          </el-descriptions-item>
+          <el-descriptions-item label="原退款">¥{{ currentDisputeDetail.originalRefundAmount }}</el-descriptions-item>
+          <el-descriptions-item label="当前退款">
+            <span style="color: #e6a23c; font-weight: 600">¥{{ currentDisputeDetail.currentRefundAmount }}</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="顾客说明" :span="2">
+            {{ currentDisputeDetail.customerNote || '无' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="店员备注" :span="2">
+            {{ currentDisputeDetail.staffNote || '无' }}
+          </el-descriptions-item>
+        </el-descriptions>
+      </template>
     </el-dialog>
   </div>
 </template>
@@ -219,42 +496,151 @@ import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { useReturnStore } from '../stores/return'
 import { useRentalStore } from '../stores/rental'
-import type { ReturnRecord, ReturnAccessory, CreateReturnRequest } from '../types'
+import { useDisputeStore } from '../stores/dispute'
+import type { ReturnRecord, ReturnAccessory, ReturnDamage, CreateReturnRequest, DisputeRecord, ReviewDisputeRequest } from '../types'
 
 const returnStore = useReturnStore()
 const rentalStore = useRentalStore()
+const disputeStore = useDisputeStore()
 
 const dialogVisible = ref(false)
 const detailVisible = ref(false)
+const reviewDialogVisible = ref(false)
+const disputeDetailVisible = ref(false)
 const formRef = ref<FormInstance>()
+const reviewFormRef = ref<FormInstance>()
 const currentDetail = ref<ReturnRecord | null>(null)
+const currentDisputeDetail = ref<DisputeRecord | null>(null)
 const currentRentalDeposit = ref(0)
+const currentRentalEndDate = ref('')
+const filterStatus = ref('')
+const reviewingDispute = ref<DisputeRecord | null>(null)
 
 const formData = reactive<CreateReturnRequest & { dressName?: string }>({
   rentalId: '',
   returnDate: '',
   accessories: [],
+  damages: [],
   cleaningStatus: 'clean',
   cleaningCost: 0,
+  lateFee: 0,
   damageDeduction: 0,
-  notes: ''
+  notes: '',
+  customerNote: '',
+  staffNote: '',
+  inspector: '',
+})
+
+const reviewFormData = reactive<ReviewDisputeRequest & { adjustedRefundAmount: number }>({
+  reviewStatus: 'approved',
+  reviewConclusion: '',
+  reviewOperator: '',
+  adjustedRefundAmount: 0,
 })
 
 const formRules: FormRules = {
   rentalId: [{ required: true, message: '请选择预约订单', trigger: 'change' }],
   returnDate: [{ required: true, message: '请选择归还日期', trigger: 'change' }],
-  cleaningStatus: [{ required: true, message: '请选择洗护状态', trigger: 'change' }]
+  cleaningStatus: [{ required: true, message: '请选择洗护状态', trigger: 'change' }],
+  inspector: [{ required: true, message: '请输入验收人', trigger: 'blur' }],
 }
 
+const reviewFormRules: FormRules = {
+  reviewConclusion: [{ required: true, message: '请输入复核结论', trigger: 'blur' }],
+  reviewOperator: [{ required: true, message: '请输入复核人', trigger: 'blur' }],
+}
+
+const totalDeduction = computed(() => {
+  const accessoriesDeduction = formData.accessories.reduce((sum, a) => sum + (a.deductionAmount || 0), 0)
+  const damageDeduction = formData.damages.reduce((sum, d) => sum + d.deductionAmount, 0)
+  return accessoriesDeduction + damageDeduction + formData.cleaningCost + formData.lateFee
+})
+
 const refundAmount = computed(() => {
-  const accessoriesDeduction = formData.accessories.filter(a => !a.isComplete).length * 50
-  const totalDeduction = formData.damageDeduction + formData.cleaningCost + accessoriesDeduction
-  return Math.max(0, currentRentalDeposit.value - totalDeduction)
+  return Math.max(0, currentRentalDeposit.value - totalDeduction.value)
+})
+
+const refundAlertText = computed(() => {
+  return '押金 ¥' + currentRentalDeposit.value + '，预计退款: ¥' + refundAmount.value + '（扣减 ¥' + totalDeduction.value + '）'
+})
+
+const lateDays = computed(() => {
+  if (!formData.returnDate || !currentRentalEndDate.value) return 0
+  const returnDate = new Date(formData.returnDate)
+  const endDate = new Date(currentRentalEndDate.value)
+  const diff = Math.ceil((returnDate.getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24))
+  return Math.max(0, diff)
+})
+
+const disputeWarning = computed(() => {
+  const hasMissingAccessory = formData.accessories.some(a => !a.isComplete)
+  const hasNewDamage = formData.damages.some(d => d.isNew)
+  const hasExcessiveCleaning = formData.cleaningCost > 100
+  const accessoriesDeduction = formData.accessories.reduce((sum, a) => sum + (a.deductionAmount || 0), 0)
+  const damageDeduction = formData.damages.filter(d => d.isNew).reduce((sum, d) => sum + d.deductionAmount, 0)
+  const totalDeductionExceptLate = accessoriesDeduction + damageDeduction + formData.cleaningCost
+  const hasExcessiveDeduction = totalDeductionExceptLate > 80
+  return hasMissingAccessory || hasNewDamage || hasExcessiveCleaning || hasExcessiveDeduction
 })
 
 const inProgressRentals = computed(() => {
-  return rentalStore.rentalList.filter((r) => r.status === 'in_progress')
+  return rentalStore.rentalList.filter((r) => r.status === 'in_progress' || r.status === 'confirmed')
 })
+
+const filteredReturnList = computed(() => {
+  let list = returnStore.returnList
+  if (filterStatus.value) {
+    list = list.filter((r) => r.status === filterStatus.value)
+  }
+  return list
+})
+
+const currentDetailDispute = computed(() => {
+  if (!currentDetail.value) return null
+  return getDisputeForReturn(currentDetail.value.id)
+})
+
+function getDisputeForReturn(returnId: string): DisputeRecord | undefined {
+  return disputeStore.disputeList.find((d) => d.returnId === returnId)
+}
+
+function getDisputeStatusType(status: string) {
+  const map: Record<string, string> = {
+    pending: 'warning',
+    approved: 'success',
+    rejected: 'danger',
+  }
+  return map[status] || 'info'
+}
+
+function getDisputeStatusLabel(status: string) {
+  const map: Record<string, string> = {
+    pending: '待复核',
+    approved: '已通过',
+    rejected: '已驳回',
+  }
+  return map[status] || status
+}
+
+function getTriggerTypeColor(type: string) {
+  const map: Record<string, string> = {
+    accessory_missing: 'warning',
+    damage_new: 'danger',
+    cleaning_excessive: '',
+    deduction_excessive: 'warning',
+  }
+  return map[type] || 'info'
+}
+
+function getCategoryLabel(category: string) {
+  const map: Record<string, string> = {
+    accessories: '配件',
+    damage: '损坏',
+    cleaning: '洗护',
+    late: '逾期',
+  }
+  return map[category] || category
+}
 
 function getCleaningStatusType(status: string) {
   const map: Record<string, string> = {
@@ -297,6 +683,17 @@ function getAccessoriesStatusText(accessories: ReturnAccessory[]) {
   return allComplete ? '齐全' : '有缺失'
 }
 
+function getSeverityLabel(severity: string) {
+  const map: Record<string, string> = {
+    minor: '轻微',
+    moderate: '中等',
+    major: '严重',
+  }
+  return map[severity] || severity
+}
+
+function handleFilterChange() {}
+
 function handleAdd() {
   resetForm()
   dialogVisible.value = true
@@ -307,20 +704,55 @@ function handleView(row: ReturnRecord) {
   detailVisible.value = true
 }
 
+function handleViewDispute(dispute: DisputeRecord) {
+  currentDisputeDetail.value = dispute
+  disputeDetailVisible.value = true
+}
+
 function handleRentalChange(rentalId: string) {
   const rental = rentalStore.rentalList.find((r) => r.id === rentalId)
   if (rental) {
     formData.dressName = rental.dressName
     currentRentalDeposit.value = rental.deposit
+    currentRentalEndDate.value = rental.endDate
     formData.accessories = [
-      { name: '原配发带/KC', isComplete: true, condition: '完好', notes: '' },
-      { name: '衬裙', isComplete: true, condition: '完好', notes: '' },
-      { name: '项链/配饰', isComplete: true, condition: '完好', notes: '' }
+      { name: '原配发带/KC', isComplete: true, condition: '完好', notes: '', deductionAmount: 0, expectedQuantity: 1, actualQuantity: 1 },
+      { name: '衬裙', isComplete: true, condition: '完好', notes: '', deductionAmount: 0, expectedQuantity: 1, actualQuantity: 1 },
+      { name: '项链/配饰', isComplete: true, condition: '完好', notes: '', deductionAmount: 0, expectedQuantity: 1, actualQuantity: 1 }
     ]
+    formData.damages = []
+    calculateLateFee()
   }
 }
 
-function handleAccessoryChange() {
+function handleAccessoryChange(item: ReturnAccessory) {
+  if (!item.isComplete) {
+    if (!item.deductionAmount || item.deductionAmount === 0) {
+      item.deductionAmount = 50
+    }
+  } else {
+    item.deductionAmount = 0
+  }
+}
+
+function addDamage() {
+  formData.damages.push({
+    location: '',
+    description: '',
+    severity: 'minor',
+    isNew: true,
+    deductionAmount: 0,
+  })
+}
+
+function removeDamage(index: number) {
+  formData.damages.splice(index, 1)
+}
+
+function calculateLateFee() {
+  if (lateDays.value > 0 && formData.lateFee === 0) {
+    formData.lateFee = lateDays.value * 30
+  }
 }
 
 function resetForm() {
@@ -329,12 +761,18 @@ function resetForm() {
     dressName: '',
     returnDate: '',
     accessories: [],
+    damages: [],
     cleaningStatus: 'clean',
     cleaningCost: 0,
+    lateFee: 0,
     damageDeduction: 0,
-    notes: ''
+    notes: '',
+    customerNote: '',
+    staffNote: '',
+    inspector: '',
   })
   currentRentalDeposit.value = 0
+  currentRentalEndDate.value = ''
   formRef.value?.resetFields()
 }
 
@@ -350,16 +788,55 @@ async function handleSubmit() {
       const submitData: CreateReturnRequest = {
         rentalId: formData.rentalId,
         returnDate: formData.returnDate,
-        accessories: formData.accessories,
+        accessories: formData.accessories.map(a => ({
+          ...a,
+          expectedQuantity: a.expectedQuantity || 1,
+          actualQuantity: a.isComplete ? (a.expectedQuantity || 1) : 0,
+        })),
+        damages: formData.damages,
         cleaningStatus: formData.cleaningStatus,
         cleaningCost: formData.cleaningCost,
-        damageDeduction: formData.damageDeduction,
-        notes: formData.notes
+        lateFee: formData.lateFee,
+        damageDeduction: formData.damages.reduce((sum, d) => sum + d.deductionAmount, 0),
+        notes: formData.notes,
+        customerNote: formData.customerNote,
+        staffNote: formData.staffNote,
+        inspector: formData.inspector,
       }
       
       await returnStore.addNewReturn(submitData)
+      await disputeStore.fetchDisputeList()
       ElMessage.success('归还记录创建成功')
       dialogVisible.value = false
+    }
+  })
+}
+
+function openReviewDialog(status: 'approved' | 'rejected') {
+  if (!currentDetailDispute.value) return
+  reviewingDispute.value = currentDetailDispute.value
+  reviewFormData.reviewStatus = status
+  reviewFormData.reviewConclusion = ''
+  reviewFormData.reviewOperator = ''
+  reviewFormData.adjustedRefundAmount = currentDetailDispute.value.originalRefundAmount
+  reviewDialogVisible.value = true
+}
+
+async function handleReviewSubmit() {
+  if (!reviewFormRef.value || !reviewingDispute.value) return
+
+  await reviewFormRef.value.validate(async (valid) => {
+    if (valid) {
+      await disputeStore.reviewDisputeRecord(reviewingDispute.value!.id, {
+        reviewStatus: reviewFormData.reviewStatus,
+        reviewConclusion: reviewFormData.reviewConclusion,
+        reviewOperator: reviewFormData.reviewOperator,
+        adjustedRefundAmount: reviewFormData.adjustedRefundAmount,
+      })
+      ElMessage.success('复核提交成功')
+      reviewDialogVisible.value = false
+      detailVisible.value = false
+      await returnStore.fetchReturnList()
     }
   })
 }
@@ -367,6 +844,7 @@ async function handleSubmit() {
 onMounted(() => {
   returnStore.fetchReturnList()
   rentalStore.fetchRentalList()
+  disputeStore.fetchDisputeList()
 })
 </script>
 
@@ -387,6 +865,11 @@ onMounted(() => {
   font-size: 20px;
   color: #303133;
   margin: 0;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
 }
 
 .table-card {
@@ -424,5 +907,82 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   gap: 10px;
+}
+
+.damage-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.damage-detail-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  padding: 6px 10px;
+  background: #f5f7fa;
+  border-radius: 4px;
+}
+
+.damage-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.damage-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #f5f7fa;
+  border-radius: 4px;
+}
+
+.dispute-tag {
+  cursor: pointer;
+}
+
+.dispute-section {
+  margin-top: 16px;
+}
+
+.review-actions {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.trigger-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.deduction-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.deduction-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.deduction-category {
+  display: inline-block;
+  min-width: 36px;
+  padding: 1px 6px;
+  background: #f0f2f5;
+  border-radius: 3px;
+  font-size: 12px;
+  color: #606266;
+  text-align: center;
 }
 </style>

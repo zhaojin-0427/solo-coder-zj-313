@@ -1,10 +1,12 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { getOverviewStats, getConsignmentStats } from '../api/stats'
+import { getOverviewStats, getConsignmentStats, getDisputeStats } from '../api/stats'
+import type { DisputeStats } from '../types'
 
 export const useStatsStore = defineStore('stats', () => {
   const rawOverview = ref<any>(null)
   const rawConsignment = ref<any>(null)
+  const rawDisputeStats = ref<DisputeStats | null>(null)
   const loading = ref(false)
 
   const overviewStats = computed(() => {
@@ -168,6 +170,24 @@ export const useStatsStore = defineStore('stats', () => {
     }))
   })
 
+  const disputeStats = computed(() => rawDisputeStats.value)
+
+  const disputeByTriggerType = computed(() => {
+    if (!rawDisputeStats.value) return []
+    const byType = rawDisputeStats.value.byTriggerType || {}
+    const typeLabels: Record<string, string> = {
+      accessory_missing: '配件缺失',
+      damage_new: '新增瑕疵',
+      cleaning_excessive: '洗护费超100',
+      deduction_excessive: '押金扣减超80',
+    }
+    return Object.entries(byType).map(([type, count]) => ({
+      type,
+      label: typeLabels[type] || type,
+      count: count as number,
+    }))
+  })
+
   async function fetchOverviewStats() {
     loading.value = true
     try {
@@ -191,12 +211,14 @@ export const useStatsStore = defineStore('stats', () => {
   async function fetchAllStats() {
     loading.value = true
     try {
-      const [overview, consignment] = await Promise.all([
+      const [overview, consignment, disputes] = await Promise.all([
         getOverviewStats(),
         getConsignmentStats(),
+        getDisputeStats(),
       ])
       rawOverview.value = overview
       rawConsignment.value = consignment
+      rawDisputeStats.value = disputes
     } finally {
       loading.value = false
     }
@@ -210,6 +232,8 @@ export const useStatsStore = defineStore('stats', () => {
     washCost,
     accessoryLoss,
     consignmentCycle,
+    disputeStats,
+    disputeByTriggerType,
     loading,
     fetchOverviewStats,
     fetchConsignmentStats,

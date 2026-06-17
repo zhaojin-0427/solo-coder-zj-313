@@ -105,6 +105,86 @@
       </el-col>
     </el-row>
 
+    <el-divider content-position="left">争议统计</el-divider>
+
+    <el-row :gutter="20" class="stats-cards">
+      <el-col :span="6">
+        <el-card class="stat-card">
+          <div class="stat-item">
+            <div class="stat-icon dispute-icon">
+              <el-icon><Warning /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value">{{ statsStore.disputeStats?.totalDisputes || 0 }}</div>
+              <div class="stat-label">争议订单数</div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card class="stat-card">
+          <div class="stat-item">
+            <div class="stat-icon approve-icon">
+              <el-icon><CircleCheck /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value">{{ statsStore.disputeStats?.approvalRate || 0 }}%</div>
+              <div class="stat-label">争议通过率</div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card class="stat-card">
+          <div class="stat-item">
+            <div class="stat-icon deduct-icon">
+              <el-icon><Wallet /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value">¥{{ statsStore.disputeStats?.totalDeductionAmount || 0 }}</div>
+              <div class="stat-label">争议扣减金额</div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card class="stat-card">
+          <div class="stat-item">
+            <div class="stat-icon pending-icon">
+              <el-icon><Clock /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value">{{ statsStore.disputeStats?.pendingDisputes || 0 }}</div>
+              <div class="stat-label">待复核争议</div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
+
+    <el-row :gutter="20" class="chart-row">
+      <el-col :span="12">
+        <el-card class="chart-card">
+          <template #header>
+            <div class="card-header">
+              <span>争议触发原因分布</span>
+            </div>
+          </template>
+          <v-chart class="chart" :option="disputeTriggerOption" autoresize />
+        </el-card>
+      </el-col>
+      <el-col :span="12">
+        <el-card class="chart-card">
+          <template #header>
+            <div class="card-header">
+              <span>争议复核状态分布</span>
+            </div>
+          </template>
+          <v-chart class="chart" :option="disputeStatusOption" autoresize />
+        </el-card>
+      </el-col>
+    </el-row>
+
     <el-divider content-position="left">寄售统计</el-divider>
 
     <el-row :gutter="20" class="stats-cards">
@@ -204,7 +284,9 @@ import {
   Goods,
   CircleCheck,
   Wallet,
-  TrendCharts
+  TrendCharts,
+  Warning,
+  Clock
 } from '@element-plus/icons-vue'
 
 use([
@@ -477,6 +559,95 @@ const accessoryLossOption = computed(() => {
   }
 })
 
+const disputeTriggerOption = computed(() => {
+  const data = statsStore.disputeByTriggerType || []
+  if (data.length === 0) {
+    return {
+      title: { text: '暂无数据', left: 'center', top: 'center', textStyle: { color: '#c0c4cc', fontSize: 14 } }
+    }
+  }
+  const pieData = data.map(item => ({
+    value: item.count,
+    name: item.label
+  }))
+  return {
+    tooltip: {
+      trigger: 'item',
+      formatter: '{b}<br/>触发次数: {c}'
+    },
+    legend: {
+      orient: 'vertical',
+      left: 'left',
+      top: 'center'
+    },
+    series: [
+      {
+        name: '争议触发原因',
+        type: 'pie',
+        radius: ['40%', '70%'],
+        center: ['65%', '50%'],
+        avoidLabelOverlap: false,
+        itemStyle: {
+          borderRadius: 4,
+          borderColor: '#fff',
+          borderWidth: 2
+        },
+        label: {
+          show: true,
+          formatter: '{b}\n{c}次'
+        },
+        data: pieData,
+        color: ['#e6a23c', '#f56c6c', '#409eff', '#e74c8c']
+      }
+    ]
+  }
+})
+
+const disputeStatusOption = computed(() => {
+  const stats = statsStore.disputeStats
+  if (!stats || stats.totalDisputes === 0) {
+    return {
+      title: { text: '暂无数据', left: 'center', top: 'center', textStyle: { color: '#c0c4cc', fontSize: 14 } }
+    }
+  }
+  const pieData = [
+    { value: stats.pendingDisputes, name: '待复核' },
+    { value: stats.approvedDisputes, name: '已通过' },
+    { value: stats.rejectedDisputes, name: '已驳回' },
+  ]
+  return {
+    tooltip: {
+      trigger: 'item',
+      formatter: '{b}<br/>数量: {c}'
+    },
+    legend: {
+      orient: 'vertical',
+      left: 'left',
+      top: 'center'
+    },
+    series: [
+      {
+        name: '复核状态',
+        type: 'pie',
+        radius: ['40%', '70%'],
+        center: ['65%', '50%'],
+        avoidLabelOverlap: false,
+        itemStyle: {
+          borderRadius: 4,
+          borderColor: '#fff',
+          borderWidth: 2
+        },
+        label: {
+          show: true,
+          formatter: '{b}\n{c}件\n{d}%'
+        },
+        data: pieData,
+        color: ['#e6a23c', '#67c23a', '#f56c6c']
+      }
+    ]
+  }
+})
+
 const consignmentCycleOption = computed(() => {
   const data = statsStore.consignmentCycle || []
   return {
@@ -630,6 +801,22 @@ onMounted(() => {
 
 .rate-icon {
   background: linear-gradient(135deg, #409eff, #79bbff);
+}
+
+.dispute-icon {
+  background: linear-gradient(135deg, #e6a23c, #f3d19e);
+}
+
+.approve-icon {
+  background: linear-gradient(135deg, #67c23a, #95d475);
+}
+
+.deduct-icon {
+  background: linear-gradient(135deg, #f56c6c, #fab6b6);
+}
+
+.pending-icon {
+  background: linear-gradient(135deg, #909399, #c0c4cc);
 }
 
 .stat-info {

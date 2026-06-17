@@ -69,9 +69,20 @@ export class CreateReturnDto {
   @IsNumber()
   cleaningCost: number;
 
+  @IsNumber()
+  lateFee: number;
+
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @IsOptional()
+  @IsString()
+  customerNote?: string;
+
+  @IsOptional()
+  @IsString()
+  staffNote?: string;
 
   @IsString()
   inspector: string;

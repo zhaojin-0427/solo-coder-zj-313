@@ -22,6 +22,10 @@ function transformReturn(item: any): ReturnRecord {
     totalDeduction: Number(item.totalDeduction ?? 0),
     cleaningCost: Number(item.cleaningCost ?? 0),
     refundAmount: Number(item.refundAmount ?? 0),
+    depositAmount: Number(item.depositAmount ?? 0),
+    lateFee: Number(item.lateFee ?? 0),
+    lateDays: Number(item.lateDays ?? 0),
+    damages: item.damages || [],
   }
 }
 

@@ -5,9 +5,10 @@ import { DressesModule } from '../dresses/dresses.module';
 import { RentalsModule } from '../rentals/rentals.module';
 import { ReturnsModule } from '../returns/returns.module';
 import { FittingsModule } from '../fittings/fittings.module';
+import { DisputesModule } from '../disputes/disputes.module';
 
 @Module({
-  imports: [DressesModule, RentalsModule, ReturnsModule, FittingsModule],
+  imports: [DressesModule, RentalsModule, ReturnsModule, FittingsModule, DisputesModule],
   controllers: [StatisticsController],
   providers: [StatisticsService],
 })

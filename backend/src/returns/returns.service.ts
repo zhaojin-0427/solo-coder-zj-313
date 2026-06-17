@@ -1,10 +1,17 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Inject, forwardRef } from '@nestjs/common';
 import { CreateReturnDto } from './dto/create-return.dto';
 import { UpdateReturnDto } from './dto/update-return.dto';
 import { ReturnRecord } from './entities/return.entity';
+import { DisputesService } from '../disputes/disputes.service';
+import { RentalsService } from '../rentals/rentals.service';
 
 @Injectable()
 export class ReturnsService {
+  constructor(
+    @Inject(forwardRef(() => DisputesService))
+    private readonly disputesService: DisputesService,
+    private readonly rentalsService: RentalsService,
+  ) {}
   private returns: ReturnRecord[] = [
     {
       id: '1',
@@ -103,6 +110,8 @@ export class ReturnsService {
   ];
 
   create(createReturnDto: CreateReturnDto): ReturnRecord {
+    const rental = this.rentalsService.findOne(createReturnDto.rentalId);
+
     const totalAccessoriesDeduction = createReturnDto.accessories.reduce(
       (sum, acc) => sum + acc.deductionAmount,
       0,
@@ -115,28 +124,60 @@ export class ReturnsService {
       (acc) => acc.isComplete,
     );
 
+    const returnDate = new Date(createReturnDto.returnDate);
+    const expectedReturnDate = new Date(rental.endDate);
+    const lateDays = Math.max(
+      0,
+      Math.ceil((returnDate.getTime() - expectedReturnDate.getTime()) / (1000 * 60 * 60 * 24)),
+    );
+    const isLate = lateDays > 0;
+    const lateFee = createReturnDto.lateFee ?? (lateDays * 30);
+
+    const totalDeduction =
+      totalAccessoriesDeduction +
+      totalDamageDeduction +
+      createReturnDto.cleaningCost +
+      lateFee;
+    const refundAmount = Math.max(0, rental.deposit - totalDeduction);
+
     const newReturn: ReturnRecord = {
       id: Date.now().toString(),
-      ...createReturnDto,
-      notes: createReturnDto.notes || '',
-      dressId: '',
-      dressName: '',
-      userName: '',
-      expectedReturnDate: '',
-      isLate: false,
-      lateDays: 0,
-      lateFee: 0,
+      rentalId: createReturnDto.rentalId,
+      dressId: rental.dressId,
+      dressName: rental.dressName,
+      userName: rental.userInfo.name,
+      returnDate: createReturnDto.returnDate,
+      expectedReturnDate: rental.endDate,
+      isLate,
+      lateDays,
+      lateFee,
+      accessories: createReturnDto.accessories,
       accessoriesComplete,
       totalAccessoriesDeduction,
+      damages: createReturnDto.damages,
       totalDamageDeduction,
-      depositAmount: 0,
-      totalDeduction: totalAccessoriesDeduction + totalDamageDeduction + createReturnDto.cleaningCost,
-      refundAmount: 0,
-      status: 'pending',
+      cleaningStatus: createReturnDto.cleaningStatus,
+      cleaningCost: createReturnDto.cleaningCost,
+      depositAmount: rental.deposit,
+      totalDeduction,
+      refundAmount,
+      notes: createReturnDto.notes || '',
+      inspector: createReturnDto.inspector,
+      status: 'completed',
       createdAt: new Date().toISOString().split('T')[0],
     };
 
     this.returns.push(newReturn);
+
+    const dispute = this.disputesService.checkAndCreateDispute(
+      newReturn,
+      createReturnDto.customerNote,
+      createReturnDto.staffNote,
+    );
+    if (dispute) {
+      newReturn.status = 'disputed';
+    }
+
     return newReturn;
   }
 
@@ -192,6 +233,11 @@ export class ReturnsService {
 
     updated.refundAmount = updated.depositAmount - updated.totalDeduction;
 
+    const dispute = this.disputesService.checkAndCreateDispute(updated);
+    if (dispute) {
+      updated.status = 'disputed';
+    }
+
     this.returns[returnIndex] = updated;
     return this.returns[returnIndex];
   }
@@ -202,5 +248,29 @@ export class ReturnsService {
       throw new NotFoundException(`Return record with id ${id} not found`);
     }
     this.returns.splice(returnIndex, 1);
+  }
+
+  updateRefundFromDispute(
+    returnId: string,
+    newRefundAmount: number,
+    reviewStatus: 'pending' | 'approved' | 'rejected',
+  ): ReturnRecord {
+    const returnIndex = this.returns.findIndex((r) => r.id === returnId);
+    if (returnIndex === -1) {
+      throw new NotFoundException(`Return record with id ${returnId} not found`);
+    }
+
+    const returnRecord = this.returns[returnIndex];
+    returnRecord.refundAmount = newRefundAmount;
+    returnRecord.totalDeduction = returnRecord.depositAmount - newRefundAmount;
+
+    if (reviewStatus === 'approved' || reviewStatus === 'rejected') {
+      returnRecord.status = 'completed';
+    } else if (reviewStatus === 'pending') {
+      returnRecord.status = 'disputed';
+    }
+
+    this.returns[returnIndex] = returnRecord;
+    return returnRecord;
   }
 }
