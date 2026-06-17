@@ -32,6 +32,10 @@
           <el-icon><ShoppingCart /></el-icon>
           <span>归还验收</span>
         </el-menu-item>
+        <el-menu-item index="/consignments">
+          <el-icon><Goods /></el-icon>
+          <span>寄售管理</span>
+        </el-menu-item>
         <el-menu-item index="/statistics">
           <el-icon><DataLine /></el-icon>
           <span>数据统计</span>
@@ -68,7 +72,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { Suitcase } from '@element-plus/icons-vue'
+import { Suitcase, Goods } from '@element-plus/icons-vue'
 
 const route = useRoute()
 
@@ -81,6 +85,7 @@ const currentPageTitle = computed(() => {
     '/reservations': '租赁预约',
     '/feedbacks': '试穿反馈',
     '/returns': '归还验收',
+    '/consignments': '寄售管理',
     '/statistics': '数据统计'
   }
   return titles[route.path] || '首页'

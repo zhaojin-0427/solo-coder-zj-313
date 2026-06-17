@@ -137,6 +137,14 @@
                 />
               </el-select>
             </el-form-item>
+            <el-alert
+              v-if="!isOutfitRental && selectedDressConsignmentLocked"
+              title="该裙子正在寄售中且已被锁定（协商中或已售出），无法用于租赁预约"
+              type="warning"
+              :closable="false"
+              show-icon
+              style="margin-bottom: 12px"
+            />
             <el-form-item v-if="isOutfitRental" label="选择套装" prop="outfitId">
               <el-select
                 v-model="formData.outfitId"
@@ -405,6 +413,7 @@ import { Plus } from '@element-plus/icons-vue'
 import { useRentalStore } from '../stores/rental'
 import { useDressStore } from '../stores/dress'
 import { useOutfitStore } from '../stores/outfit'
+import { useConsignmentStore } from '../stores/consignment'
 import { calculateFitRisk } from '../api/rental'
 import { getOutfitFitRisk } from '../api/outfit'
 import type { Rental, FitRiskAssessment, CreateRentalRequest, Outfit, OutfitAvailabilityCheckResult, OutfitItem } from '../types'
@@ -412,6 +421,7 @@ import type { Rental, FitRiskAssessment, CreateRentalRequest, Outfit, OutfitAvai
 const rentalStore = useRentalStore()
 const dressStore = useDressStore()
 const outfitStore = useOutfitStore()
+const consignmentStore = useConsignmentStore()
 
 const searchForm = reactive({
   status: ''
@@ -481,7 +491,25 @@ const formRules = computed<FormRules>(() => {
 })
 
 const availableDresses = computed(() => {
-  return dressStore.dressList.filter((d) => d.status === 'available')
+  return dressStore.dressList.filter((d) => {
+    if (d.status !== 'available') return false
+    if (d.saleType === 'consignment') {
+      const locked = consignmentStore.consignmentList.some(
+        (c) => c.dressId === d.id && (c.status === 'sold' || c.status === 'negotiating')
+      )
+      if (locked) return false
+    }
+    return true
+  })
+})
+
+const selectedDressConsignmentLocked = computed(() => {
+  if (!formData.dressId) return false
+  const dress = dressStore.dressList.find((d) => d.id === formData.dressId)
+  if (!dress || dress.saleType !== 'consignment') return false
+  return consignmentStore.consignmentList.some(
+    (c) => c.dressId === dress.id && (c.status === 'sold' || c.status === 'negotiating')
+  )
 })
 
 const availableOutfits = computed(() => {
@@ -789,6 +817,7 @@ onMounted(() => {
   rentalStore.fetchRentalList()
   dressStore.fetchDressList()
   outfitStore.fetchOutfitList()
+  consignmentStore.fetchConsignmentList()
 })
 </script>
 

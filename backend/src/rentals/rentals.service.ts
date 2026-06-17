@@ -5,6 +5,7 @@ import { Rental, FitRiskAssessment, UserInfo, OutfitRentalItem } from './entitie
 import { DressesService } from '../dresses/dresses.service';
 import { FittingsService } from '../fittings/fittings.service';
 import { OutfitsService } from '../outfits/outfits.service';
+import { ConsignmentsService } from '../consignments/consignments.service';
 
 @Injectable()
 export class RentalsService {
@@ -198,6 +199,8 @@ export class RentalsService {
     private readonly fittingsService: FittingsService,
     @Inject(forwardRef(() => OutfitsService))
     private readonly outfitsService: OutfitsService,
+    @Inject(forwardRef(() => ConsignmentsService))
+    private readonly consignmentsService: ConsignmentsService,
   ) {}
 
   create(createRentalDto: CreateRentalDto): Rental {
@@ -214,6 +217,10 @@ export class RentalsService {
     }
 
     const dress = this.dressesService.findOne(createRentalDto.dressId);
+
+    if (this.consignmentsService.isDressLockedForRental(createRentalDto.dressId)) {
+      throw new BadRequestException('该裙子正在寄售议价或已成交，无法预约租赁');
+    }
     const start = new Date(createRentalDto.startDate);
     const end = new Date(createRentalDto.endDate);
     const totalDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
@@ -271,6 +278,10 @@ export class RentalsService {
     }
 
     const dress = this.dressesService.findOne(dressItem.id);
+
+    if (this.consignmentsService.isDressLockedForRental(dressItem.id)) {
+      throw new BadRequestException('套装中主裙正在寄售议价或已成交，无法预约租赁');
+    }
 
     const start = new Date(createRentalDto.startDate);
     const end = new Date(createRentalDto.endDate);

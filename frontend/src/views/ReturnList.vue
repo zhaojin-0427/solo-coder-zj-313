@@ -510,6 +510,14 @@
       </el-descriptions-item>
     </el-descriptions>
 
+    <el-alert
+      v-if="currentDetailConsignmentLocked"
+      type="warning"
+      :closable="false"
+      show-icon
+      title="该裙子正在寄售交易中，已锁定租赁"
+    />
+
     <div v-if="currentDetailDispute" class="dispute-section">
       <el-divider content-position="left">
         <el-tag type="warning" effect="dark" size="small">争议记录</el-tag>
@@ -661,12 +669,14 @@ import { useReturnStore } from '../stores/return'
 import { useRentalStore } from '../stores/rental'
 import { useDisputeStore } from '../stores/dispute'
 import { useDressStore } from '../stores/dress'
+import { useConsignmentStore } from '../stores/consignment'
 import type { ReturnRecord, ReturnAccessory, ReturnDamage, CreateReturnRequest, DisputeRecord, ReviewDisputeRequest, OutfitItemCheck, OutfitRentalItem, Rental } from '../types'
 
 const returnStore = useReturnStore()
 const rentalStore = useRentalStore()
 const disputeStore = useDisputeStore()
 const dressStore = useDressStore()
+const consignmentStore = useConsignmentStore()
 
 const dialogVisible = ref(false)
 const detailVisible = ref(false)
@@ -788,6 +798,15 @@ const filteredReturnList = computed(() => {
 const currentDetailDispute = computed(() => {
   if (!currentDetail.value) return null
   return getDisputeForReturn(currentDetail.value.id)
+})
+
+const currentDetailConsignmentLocked = computed(() => {
+  if (!currentDetail.value || currentDetail.value.isOutfitReturn) return false
+  const dress = dressStore.dressList.find(d => d.name === currentDetail.value!.dressName)
+  if (!dress || dress.saleType !== 'consignment') return false
+  return consignmentStore.consignmentList.some(
+    c => c.dressId === dress.id && (c.status === 'sold' || c.status === 'negotiating')
+  )
 })
 
 function getDisputeForReturn(returnId: string): DisputeRecord | undefined {
@@ -1085,6 +1104,7 @@ onMounted(() => {
   rentalStore.fetchRentalList()
   disputeStore.fetchDisputeList()
   dressStore.fetchDressList()
+  consignmentStore.fetchConsignmentList()
 })
 </script>
 

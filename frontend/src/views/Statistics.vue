@@ -64,7 +64,7 @@
         <el-card class="chart-card">
           <template #header>
             <div class="card-header">
-              <span>各柄图出租率</span>
+              <span>成交排行（按柄图）</span>
             </div>
           </template>
           <v-chart class="chart" :option="patternRentalRateOption" autoresize />
@@ -188,54 +188,122 @@
     <el-divider content-position="left">寄售统计</el-divider>
 
     <el-row :gutter="20" class="stats-cards">
-      <el-col :span="6">
+      <el-col :span="4">
         <el-card class="stat-card">
           <div class="stat-item">
-            <div class="stat-icon consign-icon">
+            <div class="stat-icon onshelf-icon">
               <el-icon><Goods /></el-icon>
             </div>
             <div class="stat-info">
-              <div class="stat-value">{{ statsStore.consignmentStats?.totalConsignments || 0 }}</div>
-              <div class="stat-label">寄售总数</div>
+              <div class="stat-value">{{ statsStore.consignmentStats?.onShelfCount || 0 }}</div>
+              <div class="stat-label">寄售在架数</div>
             </div>
           </div>
         </el-card>
       </el-col>
-      <el-col :span="6">
+      <el-col :span="4">
         <el-card class="stat-card">
           <div class="stat-item">
-            <div class="stat-icon active-icon">
+            <div class="stat-icon sold-icon">
               <el-icon><CircleCheck /></el-icon>
             </div>
             <div class="stat-info">
-              <div class="stat-value">{{ statsStore.consignmentStats?.activeConsignments || 0 }}</div>
-              <div class="stat-label">进行中</div>
+              <div class="stat-value">{{ statsStore.consignmentStats?.soldCount || 0 }}</div>
+              <div class="stat-label">已成交数</div>
             </div>
           </div>
         </el-card>
       </el-col>
-      <el-col :span="6">
+      <el-col :span="4">
         <el-card class="stat-card">
           <div class="stat-item">
-            <div class="stat-icon commission-icon">
+            <div class="stat-icon transaction-icon">
+              <el-icon><Money /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value">¥{{ statsStore.consignmentStats?.totalTransactionAmount || 0 }}</div>
+              <div class="stat-label">成交金额</div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="4">
+        <el-card class="stat-card">
+          <div class="stat-item">
+            <div class="stat-icon platform-commission-icon">
               <el-icon><Wallet /></el-icon>
             </div>
             <div class="stat-info">
-              <div class="stat-value">¥{{ statsStore.consignmentStats?.totalCommission || 0 }}</div>
-              <div class="stat-label">总佣金</div>
+              <div class="stat-value">¥{{ statsStore.consignmentStats?.totalPlatformCommission || 0 }}</div>
+              <div class="stat-label">平台佣金</div>
             </div>
           </div>
         </el-card>
       </el-col>
-      <el-col :span="6">
+      <el-col :span="4">
         <el-card class="stat-card">
           <div class="stat-item">
-            <div class="stat-icon rate-icon">
+            <div class="stat-icon avg-cycle-icon">
+              <el-icon><Clock /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value">{{ statsStore.consignmentStats?.avgTransactionCycle || 0 }}天</div>
+              <div class="stat-label">平均成交周期</div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="4">
+        <el-card class="stat-card">
+          <div class="stat-item">
+            <div class="stat-icon expired-icon">
+              <el-icon><Warning /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value">{{ statsStore.consignmentStats?.expiredWithoutSaleCount || 0 }}</div>
+              <div class="stat-label">到期未成交数</div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
+
+    <el-row :gutter="20" class="stats-cards">
+      <el-col :span="8">
+        <el-card class="stat-card">
+          <div class="stat-item">
+            <div class="stat-icon pending-settlement-icon">
+              <el-icon><Wallet /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value">¥{{ statsStore.consignmentStats?.pendingSettlementAmount || 0 }}</div>
+              <div class="stat-label">委托人待结算金额</div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="8">
+        <el-card class="stat-card">
+          <div class="stat-item">
+            <div class="stat-icon settled-icon">
+              <el-icon><CircleCheck /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value">{{ statsStore.consignmentStats?.settledCount || 0 }}</div>
+              <div class="stat-label">已结算数</div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="8">
+        <el-card class="stat-card">
+          <div class="stat-item">
+            <div class="stat-icon cancelled-icon">
               <el-icon><TrendCharts /></el-icon>
             </div>
             <div class="stat-info">
-              <div class="stat-value">{{ statsStore.consignmentStats?.averageCommissionRate?.toFixed?.(1) || '0' }}%</div>
-              <div class="stat-label">平均佣金率</div>
+              <div class="stat-value">{{ statsStore.consignmentStats?.cancelledCount || 0 }}</div>
+              <div class="stat-label">已取消数</div>
             </div>
           </div>
         </el-card>
@@ -243,14 +311,24 @@
     </el-row>
 
     <el-row :gutter="20" class="chart-row">
-      <el-col :span="24">
+      <el-col :span="12">
         <el-card class="chart-card">
           <template #header>
             <div class="card-header">
-              <span>寄售成交周期</span>
+              <span>成交排行（按品牌）</span>
             </div>
           </template>
-          <v-chart class="chart chart-tall" :option="consignmentCycleOption" autoresize />
+          <v-chart class="chart" :option="brandRankingOption" autoresize />
+        </el-card>
+      </el-col>
+      <el-col :span="12">
+        <el-card class="chart-card">
+          <template #header>
+            <div class="card-header">
+              <span>成交排行（按委托人）</span>
+            </div>
+          </template>
+          <v-chart class="chart" :option="consignorRankingOption" autoresize />
         </el-card>
       </el-col>
     </el-row>
@@ -408,15 +486,29 @@ const statsStore = useStatsStore()
 
 const patternRentalRateOption = computed(() => {
   const data = statsStore.patternRentalRate || []
+  if (data.length === 0) {
+    return {
+      title: { text: '暂无数据', left: 'center', top: 'center', textStyle: { color: '#c0c4cc', fontSize: 14 } }
+    }
+  }
   return {
     tooltip: {
       trigger: 'axis',
-      formatter: '{b}<br/>出租率: {c}%'
+      axisPointer: { type: 'cross' },
+      formatter: (params: any) => {
+        const item = data.find((d: any) => d.pattern === params[0].name)
+        return `${params[0].name}<br/>成交数: ${item?.count || 0}<br/>成交金额: ¥${item?.totalAmount || 0}`
+      }
+    },
+    legend: {
+      data: ['成交数', '成交金额'],
+      top: 0
     },
     grid: {
       left: '3%',
       right: '4%',
       bottom: '3%',
+      top: '15%',
       containLabel: true
     },
     xAxis: {
@@ -427,16 +519,24 @@ const patternRentalRateOption = computed(() => {
         fontSize: 11
       }
     },
-    yAxis: {
-      type: 'value',
-      name: '出租率(%)',
-      max: 100
-    },
+    yAxis: [
+      {
+        type: 'value',
+        name: '成交数',
+        position: 'left'
+      },
+      {
+        type: 'value',
+        name: '金额(元)',
+        position: 'right'
+      }
+    ],
     series: [
       {
-        name: '出租率',
+        name: '成交数',
         type: 'bar',
-        data: data.map((item: any) => item.rate),
+        yAxisIndex: 0,
+        data: data.map((item: any) => item.count),
         itemStyle: {
           color: {
             type: 'linear',
@@ -454,9 +554,21 @@ const patternRentalRateOption = computed(() => {
         label: {
           show: true,
           position: 'top',
-          formatter: '{c}%',
+          formatter: '{c}',
           fontSize: 11
         }
+      },
+      {
+        name: '成交金额',
+        type: 'line',
+        yAxisIndex: 1,
+        data: data.map((item: any) => item.totalAmount),
+        smooth: true,
+        itemStyle: {
+          color: '#e6a23c'
+        },
+        symbol: 'circle',
+        symbolSize: 8
       }
     ]
   }
@@ -752,49 +864,54 @@ const disputeStatusOption = computed(() => {
   }
 })
 
-const consignmentCycleOption = computed(() => {
-  const data = statsStore.consignmentCycle || []
+const brandRankingOption = computed(() => {
+  const data = statsStore.consignmentStats?.brandRanking || []
+  if (data.length === 0) {
+    return {
+      title: { text: '暂无数据', left: 'center', top: 'center', textStyle: { color: '#c0c4cc', fontSize: 14 } }
+    }
+  }
   return {
     tooltip: {
       trigger: 'axis',
+      axisPointer: { type: 'shadow' },
       formatter: (params: any) => {
-        const item = data.find((d: any) => d.pattern === params[0].name)
-        return `${params[0].name}<br/>寄售周期: ${item?.avgDays || 0}天<br/>出租次数: ${item?.count || 0}次`
+        const item = data.find(d => d.name === params[0].name)
+        return `${params[0].name}<br/>成交数: ${item?.count || 0}<br/>成交金额: ¥${item?.totalAmount || 0}`
       }
     },
     grid: {
       left: '3%',
       right: '4%',
       bottom: '3%',
-      top: '10%',
       containLabel: true
     },
     xAxis: {
       type: 'category',
-      data: data.map((item: any) => item.pattern),
+      data: data.map((item: any) => item.name),
       axisLabel: {
-        rotate: 10,
+        rotate: 15,
         fontSize: 11
       }
     },
     yAxis: [
       {
         type: 'value',
-        name: '周期(天)',
+        name: '成交数',
         position: 'left'
       },
       {
         type: 'value',
-        name: '出租次数',
+        name: '金额(元)',
         position: 'right'
       }
     ],
     series: [
       {
-        name: '寄售周期',
+        name: '成交数',
         type: 'bar',
         yAxisIndex: 0,
-        data: data.map((item: any) => item.avgDays),
+        data: data.map((item: any) => item.count),
         itemStyle: {
           color: {
             type: 'linear',
@@ -803,8 +920,8 @@ const consignmentCycleOption = computed(() => {
             x2: 0,
             y2: 1,
             colorStops: [
-              { offset: 0, color: '#909399' },
-              { offset: 1, color: '#c0c4cc' }
+              { offset: 0, color: '#e74c8c' },
+              { offset: 1, color: '#ff9ec4' }
             ]
           },
           borderRadius: [4, 4, 0, 0]
@@ -812,18 +929,103 @@ const consignmentCycleOption = computed(() => {
         label: {
           show: true,
           position: 'top',
-          formatter: '{c}天',
+          formatter: '{c}',
           fontSize: 11
         }
       },
       {
-        name: '出租次数',
+        name: '成交金额',
         type: 'line',
         yAxisIndex: 1,
-        data: data.map((item: any) => item.count),
+        data: data.map((item: any) => item.totalAmount),
         smooth: true,
         itemStyle: {
-          color: '#e74c8c'
+          color: '#e6a23c'
+        },
+        symbol: 'circle',
+        symbolSize: 8
+      }
+    ]
+  }
+})
+
+const consignorRankingOption = computed(() => {
+  const data = statsStore.consignmentStats?.consignorRanking || []
+  if (data.length === 0) {
+    return {
+      title: { text: '暂无数据', left: 'center', top: 'center', textStyle: { color: '#c0c4cc', fontSize: 14 } }
+    }
+  }
+  return {
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      formatter: (params: any) => {
+        const item = data.find(d => d.name === params[0].name)
+        return `${params[0].name}<br/>成交数: ${item?.count || 0}<br/>成交金额: ¥${item?.totalAmount || 0}`
+      }
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      data: data.map((item: any) => item.name),
+      axisLabel: {
+        rotate: 15,
+        fontSize: 11
+      }
+    },
+    yAxis: [
+      {
+        type: 'value',
+        name: '成交数',
+        position: 'left'
+      },
+      {
+        type: 'value',
+        name: '金额(元)',
+        position: 'right'
+      }
+    ],
+    series: [
+      {
+        name: '成交数',
+        type: 'bar',
+        yAxisIndex: 0,
+        data: data.map((item: any) => item.count),
+        itemStyle: {
+          color: {
+            type: 'linear',
+            x: 0,
+            y: 0,
+            x2: 0,
+            y2: 1,
+            colorStops: [
+              { offset: 0, color: '#409eff' },
+              { offset: 1, color: '#79bbff' }
+            ]
+          },
+          borderRadius: [4, 4, 0, 0]
+        },
+        label: {
+          show: true,
+          position: 'top',
+          formatter: '{c}',
+          fontSize: 11
+        }
+      },
+      {
+        name: '成交金额',
+        type: 'line',
+        yAxisIndex: 1,
+        data: data.map((item: any) => item.totalAmount),
+        smooth: true,
+        itemStyle: {
+          color: '#67c23a'
         },
         symbol: 'circle',
         symbolSize: 8
@@ -1128,20 +1330,40 @@ onMounted(() => {
   background: linear-gradient(135deg, #67c23a, #95d475);
 }
 
-.consign-icon {
+.onshelf-icon {
   background: linear-gradient(135deg, #909399, #c0c4cc);
 }
 
-.active-icon {
+.sold-icon {
   background: linear-gradient(135deg, #67c23a, #95d475);
 }
 
-.commission-icon {
+.transaction-icon {
+  background: linear-gradient(135deg, #e74c8c, #ff9ec4);
+}
+
+.platform-commission-icon {
   background: linear-gradient(135deg, #e6a23c, #f3d19e);
 }
 
-.rate-icon {
+.avg-cycle-icon {
   background: linear-gradient(135deg, #409eff, #79bbff);
+}
+
+.expired-icon {
+  background: linear-gradient(135deg, #f56c6c, #fab6b6);
+}
+
+.pending-settlement-icon {
+  background: linear-gradient(135deg, #9b59b6, #c39bd3);
+}
+
+.settled-icon {
+  background: linear-gradient(135deg, #1abc9c, #82e0aa);
+}
+
+.cancelled-icon {
+  background: linear-gradient(135deg, #909399, #c0c4cc);
 }
 
 .dispute-icon {
@@ -1210,9 +1432,5 @@ onMounted(() => {
 .chart {
   height: 320px;
   width: 100%;
-}
-
-.chart-tall {
-  height: 380px;
 }
 </style>

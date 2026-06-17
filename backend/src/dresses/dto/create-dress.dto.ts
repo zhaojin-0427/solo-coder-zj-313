@@ -56,6 +56,17 @@ class RentalSlotDto {
   isAvailable?: boolean;
 }
 
+class ConsignmentAccessoryDto {
+  @IsString()
+  name: string;
+
+  @IsNumber()
+  quantity: number;
+
+  @IsString()
+  condition: string;
+}
+
 class ConsignmentInfoDto {
   @IsString()
   ownerName: string;
@@ -77,6 +88,23 @@ class ConsignmentInfoDto {
 
   @IsEnum(['active', 'ended', 'pending'])
   status: 'active' | 'ended' | 'pending';
+
+  @IsNumber()
+  consignmentPrice: number;
+
+  @IsNumber()
+  minimumPrice: number;
+
+  @IsString()
+  defectDescription: string;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ConsignmentAccessoryDto)
+  includedAccessories: ConsignmentAccessoryDto[];
+
+  @IsEnum(['pending', 'processing', 'settled'])
+  settlementStatus: 'pending' | 'processing' | 'settled';
 }
 
 export class CreateDressDto {
@@ -123,6 +151,9 @@ export class CreateDressDto {
   @ValidateNested()
   @Type(() => ConsignmentInfoDto)
   consignment: ConsignmentInfoDto;
+
+  @IsEnum(['self_operated', 'consignment'])
+  saleType: 'self_operated' | 'consignment';
 
   @IsNumber()
   dailyPrice: number;

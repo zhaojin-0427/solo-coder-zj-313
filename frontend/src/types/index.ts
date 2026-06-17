@@ -23,6 +23,12 @@ export interface RentalSlot {
   isAvailable: boolean
 }
 
+export interface ConsignmentAccessory {
+  name: string
+  quantity: number
+  condition: string
+}
+
 export interface Consignment {
   ownerName: string
   ownerPhone: string
@@ -31,6 +37,11 @@ export interface Consignment {
   commissionRate: number
   basePrice: number
   status: 'active' | 'ended' | 'pending'
+  consignmentPrice: number
+  minimumPrice: number
+  defectDescription: string
+  includedAccessories: ConsignmentAccessory[]
+  settlementStatus: 'pending' | 'processing' | 'settled'
 }
 
 export interface Dress {
@@ -47,6 +58,7 @@ export interface Dress {
   accessories: AccessoryItem[]
   rentalSlots: RentalSlot[]
   consignment: Consignment
+  saleType: 'self_operated' | 'consignment'
   dailyPrice: number
   deposit: number
   status: 'available' | 'rented' | 'cleaning' | 'maintenance'
@@ -433,4 +445,82 @@ export interface OutfitFitRiskAssessment {
   score: number
   factors: string[]
   suggestions: string[]
+}
+
+export interface NegotiationRecord {
+  id: string
+  buyerName: string
+  buyerPhone: string
+  offerPrice: number
+  notes: string
+  createdAt: string
+}
+
+export interface ConsignmentRecord {
+  id: string
+  dressId: string
+  dressName: string
+  brand: string
+  size: string
+  print: string
+  consignorName: string
+  consignorPhone: string
+  consignmentPrice: number
+  minimumPrice: number
+  commissionRate: number
+  startDate: string
+  endDate: string
+  defectDescription: string
+  includedAccessories: ConsignmentAccessory[]
+  status: 'active' | 'negotiating' | 'sold' | 'cancelled' | 'expired'
+  settlementStatus: 'pending' | 'processing' | 'settled'
+  finalPrice: number
+  platformCommission: number
+  consignorAmount: number
+  settlementDeadline: string
+  transactionDate: string
+  currentOffer: number
+  buyerName: string
+  buyerPhone: string
+  negotiations: NegotiationRecord[]
+  notes: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateConsignmentRequest {
+  dressId: string
+  consignorName: string
+  consignorPhone: string
+  consignmentPrice: number
+  minimumPrice: number
+  commissionRate: number
+  startDate: string
+  endDate: string
+  defectDescription?: string
+  includedAccessories: ConsignmentAccessory[]
+  notes?: string
+}
+
+export interface NegotiateRequest {
+  buyerName: string
+  buyerPhone: string
+  offerPrice: number
+  notes?: string
+}
+
+export interface ConsignmentStats {
+  onShelfCount: number
+  totalTransactionAmount: number
+  totalPlatformCommission: number
+  avgTransactionCycle: number
+  expiredWithoutSaleCount: number
+  pendingSettlementAmount: number
+  soldCount: number
+  cancelledCount: number
+  settledCount: number
+  brandRanking: { name: string; count: number; totalAmount: number }[]
+  sizeRanking: { name: string; count: number; totalAmount: number }[]
+  printRanking: { name: string; count: number; totalAmount: number }[]
+  consignorRanking: { name: string; count: number; totalAmount: number }[]
 }

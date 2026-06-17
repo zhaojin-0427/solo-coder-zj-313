@@ -1,11 +1,11 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { getOverviewStats, getConsignmentStats, getDisputeStats, getOutfitStats } from '../api/stats'
-import type { DisputeStats, OutfitStats } from '../types'
+import type { ConsignmentStats, DisputeStats, OutfitStats } from '../types'
 
 export const useStatsStore = defineStore('stats', () => {
   const rawOverview = ref<any>(null)
-  const rawConsignment = ref<any>(null)
+  const rawConsignment = ref<ConsignmentStats | null>(null)
   const rawDisputeStats = ref<DisputeStats | null>(null)
   const rawOutfitStats = ref<OutfitStats | null>(null)
   const loading = ref(false)
@@ -37,92 +37,15 @@ export const useStatsStore = defineStore('stats', () => {
     }
   })
 
-  const consignmentStats = computed(() => {
-    if (!rawConsignment.value) return null
-    const data = rawConsignment.value
-    const details = data.details || []
-
-    const brandMap = new Map<string, { count: number; commission: number }>()
-    const statusMap = new Map<string, number>()
-    let totalCommission = 0
-    let activeCount = 0
-
-    details.forEach((item: any) => {
-      const dressName = item.dressName || ''
-      const brand = dressName.split(' ')[0] || '未知'
-      
-      if (!brandMap.has(brand)) {
-        brandMap.set(brand, { count: 0, commission: 0 })
-      }
-      const brandData = brandMap.get(brand)!
-      brandData.count += 1
-      brandData.commission += item.commissionIncome || 0
-
-      totalCommission += item.commissionIncome || 0
-
-      const status = item.status || 'active'
-      statusMap.set(status, (statusMap.get(status) || 0) + 1)
-      
-      if (status === 'active') {
-        activeCount++
-      }
-    })
-
-    if (brandMap.size === 0 && details.length > 0) {
-      details.forEach((item: any) => {
-        const brand = item.brand || (item.dressName || '').split(' ')[0] || '未知'
-        if (!brandMap.has(brand)) {
-          brandMap.set(brand, { count: 0, commission: 0 })
-        }
-        const brandData = brandMap.get(brand)!
-        brandData.count += 1
-        brandData.commission += item.commissionIncome || 0
-      })
-    }
-
-    if (statusMap.size === 0 && details.length > 0) {
-      activeCount = details.length
-      statusMap.set('active', details.length)
-    }
-
-    const consignmentByBrand = Array.from(brandMap.entries()).map(([brand, info]) => ({
-      brand,
-      count: info.count,
-      commission: parseFloat(info.commission.toFixed(2)),
-    }))
-
-    const consignmentByStatus = Array.from(statusMap.entries()).map(([status, count]) => ({
-      status,
-      count,
-    }))
-
-    return {
-      totalConsignments: data.totalConsignmentDresses ?? 0,
-      activeConsignments: activeCount,
-      endedConsignments: statusMap.get('ended') || 0,
-      totalCommission: parseFloat(totalCommission.toFixed(2)),
-      totalBasePrice: data.totalConsignmentValue ?? 0,
-      averageCommissionRate: data.averageCommissionRate ?? 0,
-      consignmentByBrand,
-      consignmentByStatus,
-      details,
-    }
-  })
+  const consignmentStats = computed(() => rawConsignment.value)
 
   const patternRentalRate = computed(() => {
     if (!rawConsignment.value) return []
-    const details = rawConsignment.value.details || []
-    
-    return details.map((item: any) => {
-      const rentalCount = item.rentalCount || 0
-      const consignmentDays = item.consignmentDays || 365
-      const rate = consignmentDays > 0 ? parseFloat(((rentalCount / (consignmentDays / 30)) * 100).toFixed(1)) : 0
-      return {
-        pattern: item.dressName || '未知',
-        rate: Math.min(rate, 100),
-        count: rentalCount,
-      }
-    })
+    return rawConsignment.value.printRanking.map((item) => ({
+      pattern: item.name,
+      count: item.count,
+      totalAmount: item.totalAmount,
+    }))
   })
 
   const sizeReturnRate = computed(() => {
@@ -159,16 +82,6 @@ export const useStatsStore = defineStore('stats', () => {
       { accessory: '项链', lossCount: Math.max(0, Math.ceil(lostCount * 0.1)), totalCount: 18 },
       { accessory: '手套', lossCount: Math.max(0, Math.ceil(lostCount * 0.05)), totalCount: 30 },
     ]
-  })
-
-  const consignmentCycle = computed(() => {
-    if (!rawConsignment.value) return []
-    const details = rawConsignment.value.details || []
-    return details.map((item: any) => ({
-      pattern: item.dressName || '未知',
-      avgDays: item.consignmentDays || 0,
-      count: item.rentalCount || 0,
-    }))
   })
 
   const disputeStats = computed(() => rawDisputeStats.value)
@@ -271,7 +184,6 @@ export const useStatsStore = defineStore('stats', () => {
     sizeReturnRate,
     washCost,
     accessoryLoss,
-    consignmentCycle,
     disputeStats,
     disputeByTriggerType,
     outfitStats,

@@ -5,6 +5,7 @@ import { ReturnsService } from '../returns/returns.service';
 import { FittingsService } from '../fittings/fittings.service';
 import { DisputesService } from '../disputes/disputes.service';
 import { OutfitsService } from '../outfits/outfits.service';
+import { ConsignmentsService } from '../consignments/consignments.service';
 
 @Injectable()
 export class StatisticsService {
@@ -15,6 +16,7 @@ export class StatisticsService {
     private readonly fittingsService: FittingsService,
     private readonly disputesService: DisputesService,
     private readonly outfitsService: OutfitsService,
+    private readonly consignmentsService: ConsignmentsService,
   ) {}
 
   getOverview() {
@@ -147,53 +149,7 @@ export class StatisticsService {
   }
 
   getConsignmentStats() {
-    const dresses = this.dressesService.findAll();
-    const consignmentDresses = dresses.filter(
-      (d) => d.consignment.status === 'active',
-    );
-
-    const totalConsignmentValue = consignmentDresses.reduce(
-      (sum, d) => sum + d.consignment.basePrice,
-      0,
-    );
-
-    const avgCommissionRate = consignmentDresses.length > 0
-      ? consignmentDresses.reduce((sum, d) => sum + d.consignment.commissionRate, 0) /
-        consignmentDresses.length
-      : 0;
-
-    const consignmentStats = consignmentDresses.map((dress) => {
-      const dressRentals = this.rentalsService
-        .findAll()
-        .filter((r) => r.dressId === dress.id);
-      const totalRevenue = dressRentals.reduce((sum, r) => sum + r.totalPrice, 0);
-      const commissionIncome = totalRevenue * dress.consignment.commissionRate;
-
-      const start = new Date(dress.consignment.consignmentStartDate);
-      const end = new Date(dress.consignment.consignmentEndDate);
-      const totalDays = Math.ceil(
-        (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
-      );
-
-      return {
-        dressId: dress.id,
-        dressName: dress.name,
-        ownerName: dress.consignment.ownerName,
-        basePrice: dress.consignment.basePrice,
-        commissionRate: dress.consignment.commissionRate,
-        totalRentalRevenue: totalRevenue,
-        commissionIncome: parseFloat(commissionIncome.toFixed(2)),
-        rentalCount: dressRentals.length,
-        consignmentDays: totalDays,
-      };
-    });
-
-    return {
-      totalConsignmentDresses: consignmentDresses.length,
-      totalConsignmentValue,
-      averageCommissionRate: parseFloat((avgCommissionRate * 100).toFixed(1)),
-      details: consignmentStats,
-    };
+    return this.consignmentsService.getConsignmentStats();
   }
 
   getDisputeStats() {

@@ -71,10 +71,10 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="寄售" width="80">
+        <el-table-column label="经营类型" width="100">
           <template #default="{ row }">
-            <el-tag v-if="row.consignment" type="warning">是</el-tag>
-            <el-tag v-else type="info">否</el-tag>
+            <el-tag v-if="row.saleType === 'consignment'" type="warning">寄售</el-tag>
+            <el-tag v-else type="primary">自营</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="180" fixed="right">
@@ -264,10 +264,13 @@
           </el-tab-pane>
 
           <el-tab-pane label="寄售信息" name="consignment">
-            <el-form-item label="是否寄售">
-              <el-switch v-model="hasConsignment" />
+            <el-form-item label="经营类型">
+              <el-radio-group v-model="formData.saleType">
+                <el-radio value="self_operated">自营</el-radio>
+                <el-radio value="consignment">寄售</el-radio>
+              </el-radio-group>
             </el-form-item>
-            <template v-if="hasConsignment">
+            <template v-if="formData.saleType === 'consignment'">
               <el-row :gutter="20">
                 <el-col :span="12">
                   <el-form-item label="寄售人姓名">
@@ -304,6 +307,18 @@
               </el-row>
               <el-row :gutter="20">
                 <el-col :span="12">
+                  <el-form-item label="寄售价">
+                    <el-input-number v-model="formData.consignment!.consignmentPrice" :min="0" style="width: 100%" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="最低成交价">
+                    <el-input-number v-model="formData.consignment!.minimumPrice" :min="0" style="width: 100%" />
+                  </el-form-item>
+                </el-col>
+              </el-row>
+              <el-row :gutter="20">
+                <el-col :span="12">
                   <el-form-item label="佣金比例(%)">
                     <el-input-number v-model="formData.consignment!.commissionRate" :min="0" :max="100" style="width: 100%" />
                   </el-form-item>
@@ -314,11 +329,35 @@
                   </el-form-item>
                 </el-col>
               </el-row>
+              <el-form-item label="瑕疵说明">
+                <el-input v-model="formData.consignment!.defectDescription" type="textarea" :rows="2" placeholder="请输入瑕疵说明" />
+              </el-form-item>
+              <el-divider content-position="left">随附配件</el-divider>
+              <div class="accessory-list">
+                <div
+                  v-for="(acc, index) in formData.consignment!.includedAccessories"
+                  :key="index"
+                  class="accessory-item"
+                >
+                  <el-input v-model="acc.name" placeholder="配件名称" style="width: 150px" />
+                  <el-input-number v-model="acc.quantity" :min="1" style="width: 100px" />
+                  <el-input v-model="acc.condition" placeholder="成色" style="flex: 1" />
+                  <el-button type="danger" link @click="removeConsignmentAccessory(index)">删除</el-button>
+                </div>
+              </div>
+              <el-button type="primary" link @click="addConsignmentAccessory">+ 添加配件</el-button>
               <el-form-item label="寄售状态">
                 <el-select v-model="formData.consignment!.status" placeholder="请选择状态" style="width: 200px">
                   <el-option label="进行中" value="active" />
                   <el-option label="已结束" value="ended" />
                   <el-option label="待开始" value="pending" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="结算状态">
+                <el-select v-model="formData.consignment!.settlementStatus" placeholder="请选择结算状态" style="width: 200px">
+                  <el-option label="待结算" value="pending" />
+                  <el-option label="结算中" value="processing" />
+                  <el-option label="已结算" value="settled" />
                 </el-select>
               </el-form-item>
             </template>
@@ -341,14 +380,14 @@
         <el-descriptions-item label="颜色">{{ currentDetail.color }}</el-descriptions-item>
         <el-descriptions-item label="日租金">¥{{ currentDetail.dailyPrice }}</el-descriptions-item>
         <el-descriptions-item label="押金">¥{{ currentDetail.deposit }}</el-descriptions-item>
+        <el-descriptions-item label="经营类型">
+          <el-tag v-if="currentDetail.saleType === 'consignment'" type="warning">寄售</el-tag>
+          <el-tag v-else type="primary">自营</el-tag>
+        </el-descriptions-item>
         <el-descriptions-item label="状态">
           <el-tag :type="getStatusType(currentDetail.status)">
             {{ getStatusText(currentDetail.status) }}
           </el-tag>
-        </el-descriptions-item>
-        <el-descriptions-item label="寄售">
-          <el-tag v-if="currentDetail.consignment" type="warning">是</el-tag>
-          <el-tag v-else type="info">否</el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="尺码范围" :span="2">
           <span v-if="currentDetail.sizeRange">
@@ -377,8 +416,22 @@
           </div>
           <span v-else>无</span>
         </el-descriptions-item>
-        <el-descriptions-item v-if="currentDetail.consignment" label="寄售人" :span="2">
+        <el-descriptions-item v-if="currentDetail.consignment && currentDetail.saleType === 'consignment'" label="寄售人" :span="2">
           {{ currentDetail.consignment.ownerName }} ({{ currentDetail.consignment.ownerPhone }})
+        </el-descriptions-item>
+        <el-descriptions-item v-if="currentDetail.consignment && currentDetail.saleType === 'consignment'" label="寄售价">
+          ¥{{ currentDetail.consignment.consignmentPrice }}
+        </el-descriptions-item>
+        <el-descriptions-item v-if="currentDetail.consignment && currentDetail.saleType === 'consignment'" label="最低成交价">
+          ¥{{ currentDetail.consignment.minimumPrice }}
+        </el-descriptions-item>
+        <el-descriptions-item v-if="currentDetail.consignment?.defectDescription" label="寄售瑕疵" :span="2">
+          {{ currentDetail.consignment.defectDescription }}
+        </el-descriptions-item>
+        <el-descriptions-item v-if="currentDetail.consignment?.includedAccessories?.length" label="寄售配件" :span="2">
+          <div v-for="(acc, index) in currentDetail.consignment.includedAccessories" :key="index">
+            {{ acc.name }} × {{ acc.quantity }} ({{ acc.condition }})
+          </div>
         </el-descriptions-item>
       </el-descriptions>
     </el-dialog>
@@ -390,7 +443,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { useDressStore } from '../stores/dress'
-import type { Dress, Flaw, AccessoryItem } from '../types'
+import type { Dress, Flaw, AccessoryItem, ConsignmentAccessory } from '../types'
 
 const dressStore = useDressStore()
 
@@ -407,30 +460,26 @@ const formRef = ref<FormInstance>()
 const currentDetail = ref<Dress | null>(null)
 const activeTab = ref('basic')
 
-const hasConsignment = computed({
-  get: () => !!formData.consignment,
-  set: (val: boolean) => {
-    if (val) {
-      formData.consignment = {
-        ownerName: '',
-        ownerPhone: '',
-        consignmentStartDate: '',
-        consignmentEndDate: '',
-        commissionRate: 0,
-        basePrice: 0,
-        status: 'active'
-      }
-    } else {
-      ;(formData as any).consignment = undefined
-    }
-  }
-})
-
 const defaultSizeRange = {
   bust: { min: 80, max: 90 },
   waist: { min: 60, max: 70 },
   hip: { min: 85, max: 95 },
   length: 100
+}
+
+const defaultConsignment = {
+  ownerName: '',
+  ownerPhone: '',
+  consignmentStartDate: '',
+  consignmentEndDate: '',
+  commissionRate: 0,
+  basePrice: 0,
+  status: 'active' as const,
+  consignmentPrice: 0,
+  minimumPrice: 0,
+  defectDescription: '',
+  includedAccessories: [] as ConsignmentAccessory[],
+  settlementStatus: 'pending' as const,
 }
 
 const formData = reactive<Partial<Dress>>({
@@ -445,7 +494,21 @@ const formData = reactive<Partial<Dress>>({
   flaws: [],
   accessories: [],
   rentalSlots: [],
-  consignment: undefined as any,
+  consignment: {
+    ownerName: '',
+    ownerPhone: '',
+    consignmentStartDate: '',
+    consignmentEndDate: '',
+    commissionRate: 0,
+    basePrice: 0,
+    status: 'active',
+    consignmentPrice: 0,
+    minimumPrice: 0,
+    defectDescription: '',
+    includedAccessories: [],
+    settlementStatus: 'pending',
+  },
+  saleType: 'self_operated',
   dailyPrice: 0,
   deposit: 0,
   status: 'available',
@@ -535,7 +598,11 @@ function handleEdit(row: Dress) {
     sizeRange: row.sizeRange ? { ...row.sizeRange } : { ...defaultSizeRange },
     flaws: row.flaws ? [...row.flaws] : [],
     accessories: row.accessories ? [...row.accessories] : [],
-    consignment: row.consignment ? { ...row.consignment } : undefined
+    consignment: row.consignment ? {
+      ...row.consignment,
+      includedAccessories: row.consignment.includedAccessories ? [...row.consignment.includedAccessories] : [],
+    } : { ...defaultConsignment, includedAccessories: [] },
+    saleType: row.saleType || 'self_operated',
   })
   dialogVisible.value = true
 }
@@ -575,6 +642,18 @@ function removeAccessory(index: number) {
   formData.accessories?.splice(index, 1)
 }
 
+function addConsignmentAccessory() {
+  formData.consignment?.includedAccessories?.push({
+    name: '',
+    quantity: 1,
+    condition: '完好',
+  })
+}
+
+function removeConsignmentAccessory(index: number) {
+  formData.consignment?.includedAccessories?.splice(index, 1)
+}
+
 function resetForm() {
   Object.assign(formData, {
     name: '',
@@ -588,7 +667,8 @@ function resetForm() {
     flaws: [],
     accessories: [],
     rentalSlots: [],
-    consignment: undefined,
+    consignment: { ...defaultConsignment, includedAccessories: [] },
+    saleType: 'self_operated',
     dailyPrice: 0,
     deposit: 0,
     status: 'available',

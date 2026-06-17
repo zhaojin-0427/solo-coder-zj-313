@@ -23,6 +23,12 @@ export interface RentalSlot {
   isAvailable: boolean;
 }
 
+export interface ConsignmentAccessory {
+  name: string;
+  quantity: number;
+  condition: string;
+}
+
 export interface ConsignmentInfo {
   ownerName: string;
   ownerPhone: string;
@@ -31,6 +37,11 @@ export interface ConsignmentInfo {
   commissionRate: number;
   basePrice: number;
   status: 'active' | 'ended' | 'pending';
+  consignmentPrice: number;
+  minimumPrice: number;
+  defectDescription: string;
+  includedAccessories: ConsignmentAccessory[];
+  settlementStatus: 'pending' | 'processing' | 'settled';
 }
 
 export class Dress {
@@ -47,6 +58,7 @@ export class Dress {
   accessories: Accessory[];
   rentalSlots: RentalSlot[];
   consignment: ConsignmentInfo;
+  saleType: 'self_operated' | 'consignment';
   dailyPrice: number;
   deposit: number;
   status: 'available' | 'rented' | 'cleaning' | 'maintenance';

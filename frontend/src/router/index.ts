@@ -40,6 +40,12 @@ const router = createRouter({
           meta: { title: '归还验收' }
         },
         {
+          path: 'consignments',
+          name: 'Consignments',
+          component: () => import('../views/ConsignmentList.vue'),
+          meta: { title: '寄售管理' }
+        },
+        {
           path: 'statistics',
           name: 'Statistics',
           component: () => import('../views/Statistics.vue'),
