@@ -3,9 +3,10 @@ import { RentalsService } from './rentals.service';
 import { RentalsController } from './rentals.controller';
 import { DressesModule } from '../dresses/dresses.module';
 import { FittingsModule } from '../fittings/fittings.module';
+import { OutfitsModule } from '../outfits/outfits.module';
 
 @Module({
-  imports: [DressesModule, forwardRef(() => FittingsModule)],
+  imports: [DressesModule, forwardRef(() => FittingsModule), forwardRef(() => OutfitsModule)],
   controllers: [RentalsController],
   providers: [RentalsService],
   exports: [RentalsService],

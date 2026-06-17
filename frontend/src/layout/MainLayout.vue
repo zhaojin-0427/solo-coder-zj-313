@@ -16,6 +16,10 @@
           <el-icon><Collection /></el-icon>
           <span>服饰档案</span>
         </el-menu-item>
+        <el-menu-item index="/outfits">
+          <el-icon><Suitcase /></el-icon>
+          <span>主题搭配</span>
+        </el-menu-item>
         <el-menu-item index="/reservations">
           <el-icon><Calendar /></el-icon>
           <span>租赁预约</span>
@@ -64,6 +68,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { Suitcase } from '@element-plus/icons-vue'
 
 const route = useRoute()
 
@@ -72,6 +77,7 @@ const activeMenu = computed(() => route.path)
 const currentPageTitle = computed(() => {
   const titles: Record<string, string> = {
     '/dresses': '服饰档案',
+    '/outfits': '主题搭配',
     '/reservations': '租赁预约',
     '/feedbacks': '试穿反馈',
     '/returns': '归还验收',

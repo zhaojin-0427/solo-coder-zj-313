@@ -1,5 +1,5 @@
 import request from './request'
-import type { OverviewStats, ConsignmentStats, DressStats, DisputeStats } from '../types'
+import type { OverviewStats, ConsignmentStats, DressStats, DisputeStats, OutfitStats } from '../types'
 
 export function getOverviewStats() {
   return request.get<any, OverviewStats>('/statistics/overview')
@@ -15,4 +15,8 @@ export function getConsignmentStats() {
 
 export function getDisputeStats() {
   return request.get<any, DisputeStats>('/statistics/disputes')
+}
+
+export function getOutfitStats() {
+  return request.get<any, OutfitStats>('/statistics/outfits')
 }

@@ -1,12 +1,13 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { getOverviewStats, getConsignmentStats, getDisputeStats } from '../api/stats'
-import type { DisputeStats } from '../types'
+import { getOverviewStats, getConsignmentStats, getDisputeStats, getOutfitStats } from '../api/stats'
+import type { DisputeStats, OutfitStats } from '../types'
 
 export const useStatsStore = defineStore('stats', () => {
   const rawOverview = ref<any>(null)
   const rawConsignment = ref<any>(null)
   const rawDisputeStats = ref<DisputeStats | null>(null)
+  const rawOutfitStats = ref<OutfitStats | null>(null)
   const loading = ref(false)
 
   const overviewStats = computed(() => {
@@ -188,6 +189,43 @@ export const useStatsStore = defineStore('stats', () => {
     }))
   })
 
+  const outfitStats = computed(() => rawOutfitStats.value)
+
+  const outfitRentalRates = computed(() => {
+    if (!rawOutfitStats.value) return []
+    return rawOutfitStats.value.rentalRates || []
+  })
+
+  const outfitPriceComparison = computed(() => {
+    if (!rawOutfitStats.value) return null
+    return rawOutfitStats.value.priceComparison || null
+  })
+
+  const outfitMostPopularScenarios = computed(() => {
+    if (!rawOutfitStats.value) return []
+    return rawOutfitStats.value.mostPopularScenarios || []
+  })
+
+  const outfitAccessoryLossStats = computed(() => {
+    if (!rawOutfitStats.value) return []
+    return rawOutfitStats.value.accessoryLossStats || []
+  })
+
+  const outfitReturnStats = computed(() => {
+    if (!rawOutfitStats.value) return null
+    return rawOutfitStats.value.outfitReturnStats || null
+  })
+
+  async function fetchOutfitStats() {
+    loading.value = true
+    try {
+      const data = await getOutfitStats()
+      rawOutfitStats.value = data
+    } finally {
+      loading.value = false
+    }
+  }
+
   async function fetchOverviewStats() {
     loading.value = true
     try {
@@ -211,14 +249,16 @@ export const useStatsStore = defineStore('stats', () => {
   async function fetchAllStats() {
     loading.value = true
     try {
-      const [overview, consignment, disputes] = await Promise.all([
+      const [overview, consignment, disputes, outfits] = await Promise.all([
         getOverviewStats(),
         getConsignmentStats(),
         getDisputeStats(),
+        getOutfitStats(),
       ])
       rawOverview.value = overview
       rawConsignment.value = consignment
       rawDisputeStats.value = disputes
+      rawOutfitStats.value = outfits
     } finally {
       loading.value = false
     }
@@ -234,9 +274,16 @@ export const useStatsStore = defineStore('stats', () => {
     consignmentCycle,
     disputeStats,
     disputeByTriggerType,
+    outfitStats,
+    outfitRentalRates,
+    outfitPriceComparison,
+    outfitMostPopularScenarios,
+    outfitAccessoryLossStats,
+    outfitReturnStats,
     loading,
     fetchOverviewStats,
     fetchConsignmentStats,
+    fetchOutfitStats,
     fetchAllStats,
   }
 })

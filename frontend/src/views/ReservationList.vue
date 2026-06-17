@@ -33,7 +33,23 @@
         stripe
         border
       >
-        <el-table-column prop="dressName" label="裙子名称" width="150" />
+        <el-table-column label="类型" width="120">
+          <template #default="{ row }">
+            <el-tag v-if="row.isOutfitRental" type="success" effect="dark">套装租赁</el-tag>
+            <el-tag v-else type="primary">单裙租赁</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="名称" width="200">
+          <template #default="{ row }">
+            <template v-if="row.isOutfitRental">
+              <div>{{ row.outfitName }}</div>
+              <div style="color: #909399; font-size: 12px">包含{{ row.outfitItems?.length || 0 }}件单品</div>
+            </template>
+            <template v-else>
+              {{ row.dressName }}
+            </template>
+          </template>
+        </el-table-column>
         <el-table-column label="用户信息" width="180">
           <template #default="{ row }">
             <div>{{ row.userInfo?.name }}</div>
@@ -88,7 +104,7 @@
     <el-dialog
       v-model="dialogVisible"
       title="新增预约"
-      width="650px"
+      width="750px"
       @close="handleDialogClose"
     >
       <el-form
@@ -97,9 +113,16 @@
         :rules="formRules"
         label-width="110px"
       >
+        <el-form-item label="预约类型">
+          <el-radio-group v-model="isOutfitRental" @change="handleRentalTypeChange">
+            <el-radio-button :value="false">单裙预约</el-radio-button>
+            <el-radio-button :value="true">套装预约</el-radio-button>
+          </el-radio-group>
+        </el-form-item>
+
         <el-row :gutter="20">
           <el-col :span="12">
-            <el-form-item label="选择裙子" prop="dressId">
+            <el-form-item v-if="!isOutfitRental" label="选择裙子" prop="dressId">
               <el-select
                 v-model="formData.dressId"
                 placeholder="请选择裙子"
@@ -111,6 +134,21 @@
                   :key="dress.id"
                   :label="dress.name + ' - ' + dress.size + '码'"
                   :value="dress.id"
+                />
+              </el-select>
+            </el-form-item>
+            <el-form-item v-if="isOutfitRental" label="选择套装" prop="outfitId">
+              <el-select
+                v-model="formData.outfitId"
+                placeholder="请选择搭配方案"
+                style="width: 100%"
+                @change="handleOutfitChange"
+              >
+                <el-option
+                  v-for="outfit in availableOutfits"
+                  :key="outfit.id"
+                  :label="outfit.themeName + ' - ' + outfit.applicableScenario"
+                  :value="outfit.id"
                 />
               </el-select>
             </el-form-item>
@@ -128,6 +166,43 @@
             </el-form-item>
           </el-col>
         </el-row>
+
+        <el-divider v-if="isOutfitRental && selectedOutfit" content-position="left">套装单品</el-divider>
+        <div v-if="isOutfitRental && selectedOutfit" class="outfit-items-section">
+          <el-row :gutter="12">
+            <el-col v-for="item in selectedOutfit.items" :key="item.id" :span="12">
+              <el-card class="outfit-item-card" :class="{ 'item-unavailable': item.status !== 'available' }">
+                <div class="item-header">
+                  <span class="item-type">{{ item.typeName }}</span>
+                  <el-tag v-if="item.isCore" type="danger" effect="dark" size="small">核心单品</el-tag>
+                  <el-tag v-if="item.status !== 'available'" type="info" size="small">{{ getItemStatusText(item.status) }}</el-tag>
+                </div>
+                <div class="item-name">{{ item.name }}</div>
+                <div class="item-info">
+                  <span>押金: ¥{{ item.deposit }}</span>
+                  <span>日租: ¥{{ item.dailyPrice }}</span>
+                </div>
+              </el-card>
+            </el-col>
+          </el-row>
+          <el-row :gutter="20" class="outfit-summary">
+            <el-col :span="12">
+              <el-form-item label="套装押金">
+                <el-input :model-value="formData.deposit" disabled>
+                  <template #prepend>¥</template>
+                </el-input>
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="套装日租">
+                <el-input :model-value="selectedOutfit?.totalDailyPrice || 0" disabled>
+                  <template #prepend>¥</template>
+                </el-input>
+              </el-form-item>
+            </el-col>
+          </el-row>
+        </div>
+
         <el-divider content-position="left">用户信息</el-divider>
         <el-row :gutter="20">
           <el-col :span="12">
@@ -187,6 +262,47 @@
             @change="handleDateChange"
           />
         </el-form-item>
+
+        <el-alert
+          v-if="isOutfitRental && availabilityCheckResult && !availabilityCheckResult.isAvailable"
+          title="可用性检查"
+          type="error"
+          :closable="false"
+          show-icon
+        >
+          <div v-if="unavailableCoreItems.length > 0" style="margin-bottom: 8px">
+            <strong>不可用核心单品：</strong>
+            <el-tag v-for="item in unavailableCoreItems" :key="item.id" type="danger" size="small" style="margin-right: 5px">
+              {{ item.name }}
+            </el-tag>
+          </div>
+          <div v-if="availabilityCheckResult.conflictingSlots.length > 0" style="margin-bottom: 8px">
+            <strong>档期冲突：</strong>
+            <div v-for="(slot, index) in availabilityCheckResult.conflictingSlots" :key="index" style="font-size: 12px; color: #606266">
+              {{ slot.startDate }} 至 {{ slot.endDate }}
+            </div>
+          </div>
+          <div v-if="availabilityCheckResult.messages.length > 0">
+            <div v-for="(msg, index) in availabilityCheckResult.messages" :key="index" style="font-size: 12px">
+              {{ msg }}
+            </div>
+          </div>
+        </el-alert>
+
+        <el-alert
+          v-if="isOutfitRental && availabilityCheckResult && availabilityCheckResult.isAvailable"
+          title="套装可用"
+          type="success"
+          :closable="false"
+          show-icon
+        >
+          <div v-if="availabilityCheckResult.messages.length > 0">
+            <div v-for="(msg, index) in availabilityCheckResult.messages" :key="index" style="font-size: 12px">
+              {{ msg }}
+            </div>
+          </div>
+        </el-alert>
+
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="押金">
@@ -222,18 +338,23 @@
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSubmit">提交预约</el-button>
+        <el-button type="primary" @click="handleSubmit" :disabled="isSubmitDisabled">提交预约</el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="detailVisible" title="预约详情" width="550px">
+    <el-dialog v-model="detailVisible" title="预约详情" width="600px">
       <el-descriptions v-if="currentDetail" :column="2" border>
+        <el-descriptions-item label="类型">
+          <el-tag v-if="currentDetail.isOutfitRental" type="success" effect="dark">套装租赁</el-tag>
+          <el-tag v-else type="primary">单裙租赁</el-tag>
+        </el-descriptions-item>
         <el-descriptions-item label="状态">
           <el-tag :type="getStatusType(currentDetail.status)">
             {{ getStatusText(currentDetail.status) }}
           </el-tag>
         </el-descriptions-item>
-        <el-descriptions-item label="裙子名称">{{ currentDetail.dressName }}</el-descriptions-item>
+        <el-descriptions-item v-if="currentDetail.isOutfitRental" label="套装名称">{{ currentDetail.outfitName }}</el-descriptions-item>
+        <el-descriptions-item v-else label="裙子名称">{{ currentDetail.dressName }}</el-descriptions-item>
         <el-descriptions-item label="使用场景">{{ currentDetail.userInfo?.usageScenario }}</el-descriptions-item>
         <el-descriptions-item label="用户姓名">{{ currentDetail.userInfo?.name }}</el-descriptions-item>
         <el-descriptions-item label="联系电话">{{ currentDetail.userInfo?.phone }}</el-descriptions-item>
@@ -262,6 +383,13 @@
         <el-descriptions-item v-if="currentDetail.fitRiskAssessment?.suggestions?.length" label="建议" :span="2">
           {{ currentDetail.fitRiskAssessment.suggestions.join('；') }}
         </el-descriptions-item>
+        <el-descriptions-item v-if="currentDetail.isOutfitRental && currentDetail.outfitItems?.length" label="套装单品" :span="2">
+          <div v-for="item in currentDetail.outfitItems" :key="item.id" class="detail-outfit-item">
+            <el-tag size="small" :type="item.isCore ? 'danger' : 'info'">{{ item.typeName }}</el-tag>
+            <span style="margin-left: 8px">{{ item.name }}</span>
+            <span style="margin-left: 8px; color: #909399">押金: ¥{{ item.deposit }} / 日租: ¥{{ item.dailyPrice }}</span>
+          </div>
+        </el-descriptions-item>
         <el-descriptions-item v-if="currentDetail.userInfo?.notes" label="备注" :span="2">
           {{ currentDetail.userInfo.notes }}
         </el-descriptions-item>
@@ -276,11 +404,14 @@ import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { useRentalStore } from '../stores/rental'
 import { useDressStore } from '../stores/dress'
+import { useOutfitStore } from '../stores/outfit'
 import { calculateFitRisk } from '../api/rental'
-import type { Rental, FitRiskAssessment, CreateRentalRequest } from '../types'
+import { getOutfitFitRisk } from '../api/outfit'
+import type { Rental, FitRiskAssessment, CreateRentalRequest, Outfit, OutfitAvailabilityCheckResult, OutfitItem } from '../types'
 
 const rentalStore = useRentalStore()
 const dressStore = useDressStore()
+const outfitStore = useOutfitStore()
 
 const searchForm = reactive({
   status: ''
@@ -291,6 +422,8 @@ const detailVisible = ref(false)
 const formRef = ref<FormInstance>()
 const dateRange = ref<string[]>([])
 const currentDetail = ref<Rental | null>(null)
+const isOutfitRental = ref(false)
+const availabilityCheckResult = ref<OutfitAvailabilityCheckResult | null>(null)
 
 const fitRiskAssessment = reactive<FitRiskAssessment>({
   riskLevel: 'low',
@@ -315,6 +448,8 @@ const defaultUserInfo = {
 const formData = reactive({
   dressId: '',
   dressName: '',
+  outfitId: '',
+  outfitName: '',
   userInfo: { ...defaultUserInfo },
   startDate: '',
   endDate: '',
@@ -324,20 +459,50 @@ const formData = reactive({
   status: 'pending' as const
 })
 
-const formRules: FormRules = {
-  dressId: [{ required: true, message: '请选择裙子', trigger: 'change' }],
-  'userInfo.name': [{ required: true, message: '请输入用户姓名', trigger: 'blur' }],
-  'userInfo.phone': [
-    { required: true, message: '请输入联系电话', trigger: 'blur' },
-    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号', trigger: 'blur' }
-  ],
-  'userInfo.height': [{ required: true, message: '请输入身高', trigger: 'blur' }],
-  'userInfo.weight': [{ required: true, message: '请输入体重', trigger: 'blur' }],
-  'userInfo.usageScenario': [{ required: true, message: '请选择使用场景', trigger: 'change' }]
-}
+const formRules = computed<FormRules>(() => {
+  const baseRules: FormRules = {
+    'userInfo.name': [{ required: true, message: '请输入用户姓名', trigger: 'blur' }],
+    'userInfo.phone': [
+      { required: true, message: '请输入联系电话', trigger: 'blur' },
+      { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号', trigger: 'blur' }
+    ],
+    'userInfo.height': [{ required: true, message: '请输入身高', trigger: 'blur' }],
+    'userInfo.weight': [{ required: true, message: '请输入体重', trigger: 'blur' }],
+    'userInfo.usageScenario': [{ required: true, message: '请选择使用场景', trigger: 'change' }]
+  }
+
+  if (isOutfitRental.value) {
+    baseRules.outfitId = [{ required: true, message: '请选择搭配方案', trigger: 'change' }]
+  } else {
+    baseRules.dressId = [{ required: true, message: '请选择裙子', trigger: 'change' }]
+  }
+
+  return baseRules
+})
 
 const availableDresses = computed(() => {
   return dressStore.dressList.filter((d) => d.status === 'available')
+})
+
+const availableOutfits = computed(() => {
+  return outfitStore.activeOutfits
+})
+
+const selectedOutfit = computed<Outfit | null>(() => {
+  if (!formData.outfitId) return null
+  return outfitStore.outfitList.find((o) => o.id === formData.outfitId) || null
+})
+
+const unavailableCoreItems = computed<OutfitItem[]>(() => {
+  if (!availabilityCheckResult.value) return []
+  return availabilityCheckResult.value.unavailableItems.filter((item) => item.isCore)
+})
+
+const isSubmitDisabled = computed(() => {
+  if (isOutfitRental.value && availabilityCheckResult.value) {
+    return unavailableCoreItems.value.length > 0
+  }
+  return false
 })
 
 function getStatusType(status: string) {
@@ -389,6 +554,16 @@ function getRiskAlertType(risk: string) {
   return map[risk] || 'info'
 }
 
+function getItemStatusText(status: string) {
+  const map: Record<string, string> = {
+    available: '可用',
+    rented: '已出租',
+    cleaning: '清洁中',
+    maintenance: '维护中'
+  }
+  return map[status] || status
+}
+
 function handleSearch() {
   rentalStore.fetchRentalList({
     status: searchForm.status || undefined
@@ -420,6 +595,26 @@ function handleComplete(row: Rental) {
   ElMessage.success('已完成预约')
 }
 
+function handleRentalTypeChange() {
+  formData.dressId = ''
+  formData.dressName = ''
+  formData.outfitId = ''
+  formData.outfitName = ''
+  formData.deposit = 0
+  formData.totalPrice = 0
+  formData.totalDays = 0
+  dateRange.value = []
+  availabilityCheckResult.value = null
+  outfitStore.clearCurrent()
+  Object.assign(fitRiskAssessment, {
+    riskLevel: 'low',
+    score: 0,
+    factors: [],
+    suggestions: []
+  })
+  formRef.value?.clearValidate()
+}
+
 function handleDressChange(dressId: string) {
   const dress = dressStore.dressList.find((d) => d.id === dressId)
   if (dress) {
@@ -430,45 +625,108 @@ function handleDressChange(dressId: string) {
   }
 }
 
+function handleOutfitChange(outfitId: string) {
+  const outfit = outfitStore.outfitList.find((o) => o.id === outfitId)
+  if (outfit) {
+    formData.outfitName = outfit.themeName
+    formData.deposit = outfit.totalDeposit
+    calculateTotalPrice()
+    calculateRisk()
+    checkOutfitAvailability()
+  }
+}
+
+async function checkOutfitAvailability() {
+  if (!formData.outfitId || !dateRange.value || dateRange.value.length !== 2) {
+    availabilityCheckResult.value = null
+    return
+  }
+
+  try {
+    const result = await outfitStore.checkAvailability(formData.outfitId, {
+      startDate: dateRange.value[0],
+      endDate: dateRange.value[1]
+    })
+    availabilityCheckResult.value = result
+  } catch (e) {
+    console.error('检查套装可用性失败', e)
+    ElMessage.error('检查套装可用性失败')
+  }
+}
+
 function handleDateChange() {
   if (dateRange.value && dateRange.value.length === 2) {
     formData.startDate = dateRange.value[0]
     formData.endDate = dateRange.value[1]
     calculateTotalPrice()
+
+    if (isOutfitRental.value && formData.outfitId) {
+      checkOutfitAvailability()
+    }
   }
 }
 
 function calculateTotalPrice() {
-  const dress = dressStore.dressList.find((d) => d.id === formData.dressId)
-  if (dress && dateRange.value && dateRange.value.length === 2) {
-    const start = new Date(dateRange.value[0])
-    const end = new Date(dateRange.value[1])
-    const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
-    formData.totalDays = days
-    formData.totalPrice = days * dress.dailyPrice
+  if (isOutfitRental.value) {
+    const outfit = selectedOutfit.value
+    if (outfit && dateRange.value && dateRange.value.length === 2) {
+      const start = new Date(dateRange.value[0])
+      const end = new Date(dateRange.value[1])
+      const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
+      formData.totalDays = days
+      formData.totalPrice = days * outfit.totalDailyPrice
+    }
+  } else {
+    const dress = dressStore.dressList.find((d) => d.id === formData.dressId)
+    if (dress && dateRange.value && dateRange.value.length === 2) {
+      const start = new Date(dateRange.value[0])
+      const end = new Date(dateRange.value[1])
+      const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
+      formData.totalDays = days
+      formData.totalPrice = days * dress.dailyPrice
+    }
   }
 }
 
 async function calculateRisk() {
-  if (!formData.dressId) return
-  
-  try {
-    const result = await calculateFitRisk(formData.dressId, {
-      height: formData.userInfo.height,
-      weight: formData.userInfo.weight,
-      bust: formData.userInfo.bust,
-      waist: formData.userInfo.waist,
-      hip: formData.userInfo.hip
-    })
-    Object.assign(fitRiskAssessment, result)
-  } catch (e) {
-    console.error('计算合身风险失败', e)
+  if (isOutfitRental.value) {
+    if (!formData.outfitId) return
+
+    try {
+      const result = await getOutfitFitRisk(formData.outfitId, {
+        height: formData.userInfo.height,
+        bust: formData.userInfo.bust,
+        waist: formData.userInfo.waist,
+        hip: formData.userInfo.hip
+      })
+      Object.assign(fitRiskAssessment, result)
+    } catch (e) {
+      console.error('计算套装合身风险失败', e)
+    }
+  } else {
+    if (!formData.dressId) return
+
+    try {
+      const result = await calculateFitRisk(formData.dressId, {
+        height: formData.userInfo.height,
+        weight: formData.userInfo.weight,
+        bust: formData.userInfo.bust,
+        waist: formData.userInfo.waist,
+        hip: formData.userInfo.hip
+      })
+      Object.assign(fitRiskAssessment, result)
+    } catch (e) {
+      console.error('计算合身风险失败', e)
+    }
   }
 }
 
 function resetForm() {
+  isOutfitRental.value = false
   formData.dressId = ''
   formData.dressName = ''
+  formData.outfitId = ''
+  formData.outfitName = ''
   formData.userInfo = { ...defaultUserInfo }
   formData.startDate = ''
   formData.endDate = ''
@@ -477,6 +735,8 @@ function resetForm() {
   formData.deposit = 0
   formData.status = 'pending'
   dateRange.value = []
+  availabilityCheckResult.value = null
+  outfitStore.clearCurrent()
   Object.assign(fitRiskAssessment, {
     riskLevel: 'low',
     score: 0,
@@ -492,21 +752,32 @@ function handleDialogClose() {
 
 async function handleSubmit() {
   if (!formRef.value) return
-  
+
   await formRef.value.validate(async (valid) => {
     if (valid) {
       if (!formData.startDate || !formData.endDate) {
         ElMessage.warning('请选择租赁日期')
         return
       }
-      
+
+      if (isOutfitRental.value && isSubmitDisabled.value) {
+        ElMessage.warning('存在不可用的核心单品，无法提交预约')
+        return
+      }
+
       const submitData: CreateRentalRequest = {
-        dressId: formData.dressId,
+        isOutfitRental: isOutfitRental.value,
         userInfo: { ...formData.userInfo },
         startDate: formData.startDate,
         endDate: formData.endDate
       }
-      
+
+      if (isOutfitRental.value) {
+        submitData.outfitId = formData.outfitId
+      } else {
+        submitData.dressId = formData.dressId
+      }
+
       await rentalStore.addNewRental(submitData)
       ElMessage.success('预约提交成功')
       dialogVisible.value = false
@@ -517,6 +788,7 @@ async function handleSubmit() {
 onMounted(() => {
   rentalStore.fetchRentalList()
   dressStore.fetchDressList()
+  outfitStore.fetchOutfitList()
 })
 </script>
 
@@ -542,5 +814,62 @@ onMounted(() => {
 .search-card,
 .table-card {
   border-radius: 8px;
+}
+
+.outfit-items-section {
+  margin-bottom: 16px;
+}
+
+.outfit-item-card {
+  margin-bottom: 12px;
+  padding: 12px;
+}
+
+.outfit-item-card.item-unavailable {
+  opacity: 0.6;
+  border: 1px solid #e4e7ed;
+}
+
+.item-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.item-type {
+  font-size: 12px;
+  color: #909399;
+  background: #f5f7fa;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.item-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #303133;
+  margin-bottom: 8px;
+}
+
+.item-info {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: #606266;
+}
+
+.outfit-summary {
+  margin-top: 12px;
+}
+
+.detail-outfit-item {
+  padding: 6px 0;
+  font-size: 13px;
+  border-bottom: 1px dashed #e4e7ed;
+}
+
+.detail-outfit-item:last-child {
+  border-bottom: none;
 }
 </style>

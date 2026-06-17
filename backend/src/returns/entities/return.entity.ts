@@ -1,3 +1,15 @@
+export interface OutfitItemCheck {
+  id: string;
+  name: string;
+  type: string;
+  typeName: string;
+  isCore: boolean;
+  isReturned: boolean;
+  condition: string;
+  deductionAmount: number;
+  notes?: string;
+}
+
 export interface AccessoryCheck {
   name: string;
   expectedQuantity: number;
@@ -20,6 +32,12 @@ export class ReturnRecord {
   rentalId: string;
   dressId: string;
   dressName: string;
+  outfitId?: string;
+  outfitName?: string;
+  isOutfitReturn: boolean;
+  outfitItems?: OutfitItemCheck[];
+  outfitComplete?: boolean;
+  totalOutfitItemsDeduction?: number;
   userName: string;
   returnDate: string;
   expectedReturnDate: string;

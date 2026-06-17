@@ -5,6 +5,7 @@ import { FittingsModule } from './fittings/fittings.module';
 import { ReturnsModule } from './returns/returns.module';
 import { DisputesModule } from './disputes/disputes.module';
 import { StatisticsModule } from './statistics/statistics.module';
+import { OutfitsModule } from './outfits/outfits.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { StatisticsModule } from './statistics/statistics.module';
     ReturnsModule,
     DisputesModule,
     StatisticsModule,
+    OutfitsModule,
   ],
 })
 export class AppModule {}

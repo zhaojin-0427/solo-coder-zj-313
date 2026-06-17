@@ -1,3 +1,15 @@
+export interface OutfitRentalItem {
+  id: string;
+  name: string;
+  type: 'dress' | 'accessory' | 'kc' | 'petticoat' | 'shoes_bag' | 'wig' | 'photo_prop';
+  typeName: string;
+  isCore: boolean;
+  deposit: number;
+  dailyPrice: number;
+  isReturned?: boolean;
+  returnCondition?: string;
+}
+
 export interface UserInfo {
   name: string;
   phone: string;
@@ -22,6 +34,10 @@ export class Rental {
   id: string;
   dressId: string;
   dressName: string;
+  outfitId?: string;
+  outfitName?: string;
+  outfitItems?: OutfitRentalItem[];
+  isOutfitRental: boolean;
   userInfo: UserInfo;
   startDate: string;
   endDate: string;

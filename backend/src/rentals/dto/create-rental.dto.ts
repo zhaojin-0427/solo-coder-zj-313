@@ -5,6 +5,7 @@ import {
   IsEnum,
   IsOptional,
   ValidateNested,
+  IsBoolean,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -42,8 +43,16 @@ class UserInfoDto {
 }
 
 export class CreateRentalDto {
+  @IsOptional()
   @IsString()
-  dressId: string;
+  dressId?: string;
+
+  @IsOptional()
+  @IsString()
+  outfitId?: string;
+
+  @IsBoolean()
+  isOutfitRental: boolean;
 
   @ValidateNested()
   @Type(() => UserInfoDto)

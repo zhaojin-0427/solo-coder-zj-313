@@ -4,6 +4,7 @@ import { RentalsService } from '../rentals/rentals.service';
 import { ReturnsService } from '../returns/returns.service';
 import { FittingsService } from '../fittings/fittings.service';
 import { DisputesService } from '../disputes/disputes.service';
+import { OutfitsService } from '../outfits/outfits.service';
 
 @Injectable()
 export class StatisticsService {
@@ -13,6 +14,7 @@ export class StatisticsService {
     private readonly returnsService: ReturnsService,
     private readonly fittingsService: FittingsService,
     private readonly disputesService: DisputesService,
+    private readonly outfitsService: OutfitsService,
   ) {}
 
   getOverview() {
@@ -196,5 +198,58 @@ export class StatisticsService {
 
   getDisputeStats() {
     return this.disputesService.getDisputeStats();
+  }
+
+  getOutfitStats() {
+    const outfitStats = this.outfitsService.getOutfitStats();
+    const returnStats = this.returnsService.getOutfitReturnStats();
+    const rentals = this.rentalsService.findAll();
+
+    const outfitRentals = rentals.filter((r) => r.isOutfitRental);
+    const singleRentals = rentals.filter((r) => !r.isOutfitRental);
+
+    const totalOutfitRevenue = outfitRentals.reduce((sum, r) => sum + r.totalPrice, 0);
+    const avgSetOrderPrice = outfitRentals.length > 0
+      ? totalOutfitRevenue / outfitRentals.length
+      : 0;
+
+    const totalSingleRevenue = singleRentals.reduce((sum, r) => sum + r.totalPrice, 0);
+    const avgSingleOrderPrice = singleRentals.length > 0
+      ? totalSingleRevenue / singleRentals.length
+      : 0;
+
+    const priceComparison = {
+      avgSetOrderPrice: parseFloat(avgSetOrderPrice.toFixed(2)),
+      avgSingleOrderPrice: parseFloat(avgSingleOrderPrice.toFixed(2)),
+      premiumPercentage: avgSingleOrderPrice > 0
+        ? parseFloat((((avgSetOrderPrice - avgSingleOrderPrice) / avgSingleOrderPrice) * 100).toFixed(1))
+        : 0,
+    };
+
+    const mostPopularScenarios = outfitStats.scenarioStats.slice(0, 5);
+
+    const outfitRentalRates = outfitStats.rentalRates.map((item) => ({
+      ...item,
+      rentalRate: item.rentalCount > 0 ? parseFloat(((item.rentalCount / 30) * 100).toFixed(1)) : 0,
+    }));
+
+    return {
+      overview: {
+        ...outfitStats.overview,
+        totalOutfitRentals: outfitRentals.length,
+        completedOutfitRentals: outfitRentals.filter((r) => r.status === 'completed').length,
+        totalOutfitRevenue: parseFloat(totalOutfitRevenue.toFixed(2)),
+        avgSetOrderPrice: parseFloat(avgSetOrderPrice.toFixed(2)),
+      },
+      rentalRates: outfitRentalRates,
+      priceComparison,
+      mostPopularScenarios,
+      accessoryLossStats: returnStats.accessoryLossStats,
+      outfitReturnStats: {
+        totalReturns: returnStats.totalOutfitReturns,
+        completeReturns: returnStats.completeOutfitReturns,
+        completeRate: returnStats.completeRate,
+      },
+    };
   }
 }

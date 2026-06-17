@@ -48,4 +48,12 @@ export class RentalsController {
   ) {
     return this.rentalsService.getFitRisk(dressId, userInfo);
   }
+
+  @Post('outfit-fit-risk/:outfitId')
+  getOutfitFitRisk(
+    @Param('outfitId') outfitId: string,
+    @Body() userInfo: UserInfo,
+  ) {
+    return this.rentalsService.getOutfitFitRisk(outfitId, userInfo);
+  }
 }

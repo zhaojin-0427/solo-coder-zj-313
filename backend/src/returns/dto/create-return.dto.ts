@@ -9,6 +9,36 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
+class OutfitItemCheckDto {
+  @IsString()
+  id: string;
+
+  @IsString()
+  name: string;
+
+  @IsString()
+  type: string;
+
+  @IsString()
+  typeName: string;
+
+  @IsBoolean()
+  isCore: boolean;
+
+  @IsBoolean()
+  isReturned: boolean;
+
+  @IsString()
+  condition: string;
+
+  @IsNumber()
+  deductionAmount: number;
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
+}
+
 class AccessoryCheckDto {
   @IsString()
   name: string;
@@ -52,6 +82,15 @@ export class CreateReturnDto {
 
   @IsString()
   returnDate: string;
+
+  @IsBoolean()
+  isOutfitReturn: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => OutfitItemCheckDto)
+  outfitItems?: OutfitItemCheckDto[];
 
   @IsArray()
   @ValidateNested({ each: true })

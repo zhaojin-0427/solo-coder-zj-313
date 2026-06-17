@@ -254,6 +254,109 @@
         </el-card>
       </el-col>
     </el-row>
+
+    <el-divider content-position="left">主题搭配统计</el-divider>
+
+    <el-row :gutter="20" class="stats-cards">
+      <el-col :span="6">
+        <el-card class="stat-card">
+          <div class="stat-item">
+            <div class="stat-icon outfit-icon">
+              <el-icon><Suitcase /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value">{{ statsStore.outfitStats?.overview?.totalOutfits || 0 }}</div>
+              <div class="stat-label">主题方案总数</div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card class="stat-card">
+          <div class="stat-item">
+            <div class="stat-icon outfit-rent-icon">
+              <el-icon><ShoppingCart /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value">{{ statsStore.outfitStats?.overview?.totalOutfitRentals || 0 }}</div>
+              <div class="stat-label">套装预约总数</div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card class="stat-card">
+          <div class="stat-item">
+            <div class="stat-icon outfit-money-icon">
+              <el-icon><Money /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value">¥{{ statsStore.outfitStats?.overview?.totalOutfitRevenue || 0 }}</div>
+              <div class="stat-label">套装总营收</div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card class="stat-card">
+          <div class="stat-item">
+            <div class="stat-icon outfit-price-icon">
+              <el-icon><TrendCharts /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value">¥{{ statsStore.outfitStats?.overview?.avgSetOrderPrice || 0 }}</div>
+              <div class="stat-label">套装客单价</div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
+
+    <el-row :gutter="20" class="chart-row">
+      <el-col :span="12">
+        <el-card class="chart-card">
+          <template #header>
+            <div class="card-header">
+              <span>主题方案出租率</span>
+            </div>
+          </template>
+          <v-chart class="chart" :option="outfitRentalRateOption" autoresize />
+        </el-card>
+      </el-col>
+      <el-col :span="12">
+        <el-card class="chart-card">
+          <template #header>
+            <div class="card-header">
+              <span>套装客单价对比</span>
+            </div>
+          </template>
+          <v-chart class="chart" :option="outfitPriceComparisonOption" autoresize />
+        </el-card>
+      </el-col>
+    </el-row>
+
+    <el-row :gutter="20" class="chart-row">
+      <el-col :span="12">
+        <el-card class="chart-card">
+          <template #header>
+            <div class="card-header">
+              <span>套装配件遗失频次</span>
+            </div>
+          </template>
+          <v-chart class="chart" :option="outfitAccessoryLossOption" autoresize />
+        </el-card>
+      </el-col>
+      <el-col :span="12">
+        <el-card class="chart-card">
+          <template #header>
+            <div class="card-header">
+              <span>最受欢迎使用场景</span>
+            </div>
+          </template>
+          <v-chart class="chart" :option="outfitScenarioOption" autoresize />
+        </el-card>
+      </el-col>
+    </el-row>
   </div>
 </template>
 
@@ -286,7 +389,8 @@ import {
   Wallet,
   TrendCharts,
   Warning,
-  Clock
+  Clock,
+  Suitcase
 } from '@element-plus/icons-vue'
 
 use([
@@ -728,6 +832,243 @@ const consignmentCycleOption = computed(() => {
   }
 })
 
+const outfitRentalRateOption = computed(() => {
+  const data = statsStore.outfitRentalRates || []
+  if (data.length === 0) {
+    return {
+      title: { text: '暂无数据', left: 'center', top: 'center', textStyle: { color: '#c0c4cc', fontSize: 14 } }
+    }
+  }
+  return {
+    tooltip: {
+      trigger: 'axis',
+      formatter: '{b}<br/>出租率: {c}%<br/>租赁次数: ' + (data.find((d: any) => d.themeName === '{b}')?.rentalCount || 0)
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      data: data.map((item: any) => item.themeName),
+      axisLabel: {
+        rotate: 15,
+        fontSize: 11
+      }
+    },
+    yAxis: {
+      type: 'value',
+      name: '出租率(%)',
+      max: 100
+    },
+    series: [
+      {
+        name: '出租率',
+        type: 'bar',
+        data: data.map((item: any) => item.rentalRate),
+        itemStyle: {
+          color: {
+            type: 'linear',
+            x: 0,
+            y: 0,
+            x2: 0,
+            y2: 1,
+            colorStops: [
+              { offset: 0, color: '#9b59b6' },
+              { offset: 1, color: '#c39bd3' }
+            ]
+          },
+          borderRadius: [4, 4, 0, 0]
+        },
+        label: {
+          show: true,
+          position: 'top',
+          formatter: '{c}%',
+          fontSize: 11
+        }
+      }
+    ]
+  }
+})
+
+const outfitPriceComparisonOption = computed(() => {
+  const data = statsStore.outfitPriceComparison
+  if (!data) {
+    return {
+      title: { text: '暂无数据', left: 'center', top: 'center', textStyle: { color: '#c0c4cc', fontSize: 14 } }
+    }
+  }
+  return {
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' }
+    },
+    legend: {
+      data: ['单裙客单价', '套装客单价'],
+      top: 0
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      top: '15%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      data: ['客单价对比'],
+      axisLabel: {
+        fontSize: 12
+      }
+    },
+    yAxis: {
+      type: 'value',
+      name: '金额(元)'
+    },
+    series: [
+      {
+        name: '单裙客单价',
+        type: 'bar',
+        data: [data.avgSingleOrderPrice],
+        itemStyle: {
+          color: '#409eff',
+          borderRadius: [4, 4, 0, 0]
+        },
+        label: {
+          show: true,
+          position: 'top',
+          formatter: '¥{c}',
+          fontSize: 11
+        }
+      },
+      {
+        name: '套装客单价',
+        type: 'bar',
+        data: [data.avgSetOrderPrice],
+        itemStyle: {
+          color: '#e74c8c',
+          borderRadius: [4, 4, 0, 0]
+        },
+        label: {
+          show: true,
+          position: 'top',
+          formatter: '¥{c}\n(+' + data.premiumPercentage + '%)',
+          fontSize: 11
+        }
+      }
+    ]
+  }
+})
+
+const outfitAccessoryLossOption = computed(() => {
+  const data = statsStore.outfitAccessoryLossStats || []
+  if (data.length === 0) {
+    return {
+      title: { text: '暂无数据', left: 'center', top: 'center', textStyle: { color: '#c0c4cc', fontSize: 14 } }
+    }
+  }
+  const pieData = data.map(item => ({
+    value: item.lossCount,
+    name: item.typeName
+  }))
+  return {
+    tooltip: {
+      trigger: 'item',
+      formatter: (params: any) => {
+        const item = data.find(d => d.typeName === params.name)
+        return `${params.name}<br/>遗失数: ${params.value}次`
+      }
+    },
+    legend: {
+      orient: 'vertical',
+      left: 'left',
+      top: 'center'
+    },
+    series: [
+      {
+        name: '配件遗失',
+        type: 'pie',
+        radius: ['40%', '70%'],
+        center: ['65%', '50%'],
+        avoidLabelOverlap: false,
+        itemStyle: {
+          borderRadius: 4,
+          borderColor: '#fff',
+          borderWidth: 2
+        },
+        label: {
+          show: true,
+          formatter: '{b}\n{c}次\n{d}%'
+        },
+        data: pieData,
+        color: ['#f56c6c', '#e6a23c', '#409eff', '#67c23a', '#909399', '#9b59b6', '#e74c8c']
+      }
+    ]
+  }
+})
+
+const outfitScenarioOption = computed(() => {
+  const data = statsStore.outfitMostPopularScenarios || []
+  if (data.length === 0) {
+    return {
+      title: { text: '暂无数据', left: 'center', top: 'center', textStyle: { color: '#c0c4cc', fontSize: 14 } }
+    }
+  }
+  return {
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      formatter: '{b}<br/>使用次数: {c}次'
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'value',
+      name: '使用次数'
+    },
+    yAxis: {
+      type: 'category',
+      data: data.map((item: any) => item.scenario),
+      axisLabel: {
+        fontSize: 12
+      }
+    },
+    series: [
+      {
+        name: '使用次数',
+        type: 'bar',
+        data: data.map((item: any) => item.count),
+        itemStyle: {
+          color: {
+            type: 'linear',
+            x: 0,
+            y: 0,
+            x2: 1,
+            y2: 0,
+            colorStops: [
+              { offset: 0, color: '#1abc9c' },
+              { offset: 1, color: '#82e0aa' }
+            ]
+          },
+          borderRadius: [0, 4, 4, 0]
+        },
+        label: {
+          show: true,
+          position: 'right',
+          formatter: '{c}次',
+          fontSize: 11
+        }
+      }
+    ]
+  }
+})
+
 onMounted(() => {
   statsStore.fetchAllStats()
 })
@@ -817,6 +1158,22 @@ onMounted(() => {
 
 .pending-icon {
   background: linear-gradient(135deg, #909399, #c0c4cc);
+}
+
+.outfit-icon {
+  background: linear-gradient(135deg, #9b59b6, #c39bd3);
+}
+
+.outfit-rent-icon {
+  background: linear-gradient(135deg, #e74c8c, #ff9ec4);
+}
+
+.outfit-money-icon {
+  background: linear-gradient(135deg, #1abc9c, #82e0aa);
+}
+
+.outfit-price-icon {
+  background: linear-gradient(135deg, #f39c12, #f9e79f);
 }
 
 .stat-info {

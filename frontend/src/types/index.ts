@@ -77,8 +77,12 @@ export interface FitRiskAssessment {
 
 export interface Rental {
   id: string
-  dressId: string
-  dressName: string
+  dressId?: string
+  dressName?: string
+  outfitId?: string
+  outfitName?: string
+  outfitItems?: OutfitRentalItem[]
+  isOutfitRental: boolean
   userInfo: UserInfo
   startDate: string
   endDate: string
@@ -91,7 +95,9 @@ export interface Rental {
 }
 
 export interface CreateRentalRequest {
-  dressId: string
+  dressId?: string
+  outfitId?: string
+  isOutfitRental: boolean
   userInfo: Omit<UserInfo, 'notes'> & { notes?: string }
   startDate: string
   endDate: string
@@ -142,6 +148,12 @@ export interface ReturnRecord {
   rentalId: string
   dressId: string
   dressName: string
+  outfitId?: string
+  outfitName?: string
+  isOutfitReturn: boolean
+  outfitItems?: OutfitItemCheck[]
+  outfitComplete?: boolean
+  totalOutfitItemsDeduction?: number
   userName?: string
   returnDate: string
   expectedReturnDate?: string
@@ -170,6 +182,8 @@ export interface ReturnRecord {
 export interface CreateReturnRequest {
   rentalId: string
   returnDate: string
+  isOutfitReturn: boolean
+  outfitItems?: OutfitItemCheck[]
   accessories: ReturnAccessory[]
   damages: ReturnDamage[]
   cleaningStatus: string
@@ -272,4 +286,148 @@ export interface DisputeStats {
   totalDeductionAmount: number
   adjustedDeductionAmount: number
   byTriggerType: Record<string, number>
+}
+
+export type OutfitItemType = 'dress' | 'accessory' | 'kc' | 'petticoat' | 'shoes_bag' | 'wig' | 'photo_prop'
+
+export interface HeightRange {
+  min: number
+  max: number
+}
+
+export interface OutfitSizeRange {
+  min: string
+  max: string
+}
+
+export interface OutfitItem {
+  id: string
+  name: string
+  type: OutfitItemType
+  typeName: string
+  isCore: boolean
+  deposit: number
+  dailyPrice: number
+  status: 'available' | 'rented' | 'cleaning' | 'maintenance'
+  isReturned?: boolean
+  returnCondition?: string
+}
+
+export interface OutfitRentalSlot {
+  startDate: string
+  endDate: string
+  isAvailable: boolean
+}
+
+export interface Outfit {
+  id: string
+  themeName: string
+  applicableScenario: string
+  recommendedHeightRange: HeightRange
+  recommendedSizeRange: OutfitSizeRange
+  items: OutfitItem[]
+  totalDeposit: number
+  totalDailyPrice: number
+  rentalSlots: OutfitRentalSlot[]
+  description: string
+  coverImage: string
+  status: 'active' | 'inactive'
+  rentalCount: number
+  createdAt: string
+}
+
+export interface OutfitAvailabilityCheckResult {
+  isAvailable: boolean
+  unavailableItems: OutfitItem[]
+  conflictingSlots: OutfitRentalSlot[]
+  messages: string[]
+}
+
+export interface CreateOutfitRequest {
+  themeName: string
+  applicableScenario: string
+  recommendedHeightRange: HeightRange
+  recommendedSizeRange: OutfitSizeRange
+  items: OutfitItem[]
+  description: string
+  coverImage: string
+  status: 'active' | 'inactive'
+}
+
+export interface UpdateOutfitRequest {
+  themeName?: string
+  applicableScenario?: string
+  recommendedHeightRange?: HeightRange
+  recommendedSizeRange?: OutfitSizeRange
+  items?: OutfitItem[]
+  description?: string
+  coverImage?: string
+  status?: 'active' | 'inactive'
+}
+
+export interface OutfitRentalItem {
+  id: string
+  name: string
+  type: OutfitItemType
+  typeName: string
+  isCore: boolean
+  deposit: number
+  dailyPrice: number
+  isReturned?: boolean
+  returnCondition?: string
+}
+
+export interface OutfitItemCheck {
+  id: string
+  name: string
+  type: OutfitItemType
+  typeName: string
+  isCore: boolean
+  isReturned: boolean
+  condition: string
+  deductionAmount: number
+  notes?: string
+}
+
+export interface OutfitStats {
+  overview: {
+    totalOutfits: number
+    activeOutfits: number
+    totalOutfitRentals: number
+    completedOutfitRentals: number
+    totalOutfitRevenue: number
+    avgSetOrderPrice: number
+  }
+  rentalRates: {
+    outfitId: string
+    themeName: string
+    rentalCount: number
+    rentalRate: number
+  }[]
+  priceComparison: {
+    avgSetOrderPrice: number
+    avgSingleOrderPrice: number
+    premiumPercentage: number
+  }
+  mostPopularScenarios: {
+    scenario: string
+    count: number
+  }[]
+  accessoryLossStats: {
+    type: string
+    typeName: string
+    lossCount: number
+  }[]
+  outfitReturnStats: {
+    totalReturns: number
+    completeReturns: number
+    completeRate: number
+  }
+}
+
+export interface OutfitFitRiskAssessment {
+  riskLevel: 'low' | 'medium' | 'high'
+  score: number
+  factors: string[]
+  suggestions: string[]
 }
