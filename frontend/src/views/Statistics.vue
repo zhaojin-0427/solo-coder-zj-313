@@ -317,7 +317,7 @@ const patternRentalRateOption = computed(() => {
     },
     xAxis: {
       type: 'category',
-      data: data.map(item => item.pattern),
+      data: data.map((item: any) => item.pattern),
       axisLabel: {
         rotate: 15,
         fontSize: 11
@@ -332,7 +332,7 @@ const patternRentalRateOption = computed(() => {
       {
         name: '出租率',
         type: 'bar',
-        data: data.map(item => item.rate),
+        data: data.map((item: any) => item.rate),
         itemStyle: {
           color: {
             type: 'linear',
@@ -654,7 +654,7 @@ const consignmentCycleOption = computed(() => {
     tooltip: {
       trigger: 'axis',
       formatter: (params: any) => {
-        const item = data.find(d => d.pattern === params[0].name)
+        const item = data.find((d: any) => d.pattern === params[0].name)
         return `${params[0].name}<br/>寄售周期: ${item?.avgDays || 0}天<br/>出租次数: ${item?.count || 0}次`
       }
     },
@@ -667,7 +667,7 @@ const consignmentCycleOption = computed(() => {
     },
     xAxis: {
       type: 'category',
-      data: data.map(item => item.pattern),
+      data: data.map((item: any) => item.pattern),
       axisLabel: {
         rotate: 10,
         fontSize: 11
@@ -690,7 +690,7 @@ const consignmentCycleOption = computed(() => {
         name: '寄售周期',
         type: 'bar',
         yAxisIndex: 0,
-        data: data.map(item => item.avgDays),
+        data: data.map((item: any) => item.avgDays),
         itemStyle: {
           color: {
             type: 'linear',
@@ -716,7 +716,7 @@ const consignmentCycleOption = computed(() => {
         name: '出租次数',
         type: 'line',
         yAxisIndex: 1,
-        data: data.map(item => item.count),
+        data: data.map((item: any) => item.count),
         smooth: true,
         itemStyle: {
           color: '#e74c8c'

@@ -189,41 +189,41 @@
             <el-row :gutter="20">
               <el-col :span="12">
                 <el-form-item label="胸围最小">
-                  <el-input-number v-model="formData.sizeRange.bust.min" :min="0" style="width: 100%" />
+                  <el-input-number v-model="formData.sizeRange!.bust.min" :min="0" style="width: 100%" />
                 </el-form-item>
               </el-col>
               <el-col :span="12">
                 <el-form-item label="胸围最大">
-                  <el-input-number v-model="formData.sizeRange.bust.max" :min="0" style="width: 100%" />
+                  <el-input-number v-model="formData.sizeRange!.bust.max" :min="0" style="width: 100%" />
                 </el-form-item>
               </el-col>
             </el-row>
             <el-row :gutter="20">
               <el-col :span="12">
                 <el-form-item label="腰围最小">
-                  <el-input-number v-model="formData.sizeRange.waist.min" :min="0" style="width: 100%" />
+                  <el-input-number v-model="formData.sizeRange!.waist.min" :min="0" style="width: 100%" />
                 </el-form-item>
               </el-col>
               <el-col :span="12">
                 <el-form-item label="腰围最大">
-                  <el-input-number v-model="formData.sizeRange.waist.max" :min="0" style="width: 100%" />
+                  <el-input-number v-model="formData.sizeRange!.waist.max" :min="0" style="width: 100%" />
                 </el-form-item>
               </el-col>
             </el-row>
             <el-row :gutter="20">
               <el-col :span="12">
                 <el-form-item label="臀围最小">
-                  <el-input-number v-model="formData.sizeRange.hip.min" :min="0" style="width: 100%" />
+                  <el-input-number v-model="formData.sizeRange!.hip.min" :min="0" style="width: 100%" />
                 </el-form-item>
               </el-col>
               <el-col :span="12">
                 <el-form-item label="臀围最大">
-                  <el-input-number v-model="formData.sizeRange.hip.max" :min="0" style="width: 100%" />
+                  <el-input-number v-model="formData.sizeRange!.hip.max" :min="0" style="width: 100%" />
                 </el-form-item>
               </el-col>
             </el-row>
             <el-form-item label="裙长">
-              <el-input-number v-model="formData.sizeRange.length" :min="0" style="width: 200px" />
+              <el-input-number v-model="formData.sizeRange!.length" :min="0" style="width: 200px" />
             </el-form-item>
           </el-tab-pane>
 
@@ -271,12 +271,12 @@
               <el-row :gutter="20">
                 <el-col :span="12">
                   <el-form-item label="寄售人姓名">
-                    <el-input v-model="formData.consignment.ownerName" placeholder="请输入姓名" />
+                    <el-input v-model="formData.consignment!.ownerName" placeholder="请输入姓名" />
                   </el-form-item>
                 </el-col>
                 <el-col :span="12">
                   <el-form-item label="寄售人电话">
-                    <el-input v-model="formData.consignment.ownerPhone" placeholder="请输入电话" />
+                    <el-input v-model="formData.consignment!.ownerPhone" placeholder="请输入电话" />
                   </el-form-item>
                 </el-col>
               </el-row>
@@ -284,7 +284,7 @@
                 <el-col :span="12">
                   <el-form-item label="寄售开始日期">
                     <el-date-picker
-                      v-model="formData.consignment.consignmentStartDate"
+                      v-model="formData.consignment!.consignmentStartDate"
                       type="date"
                       value-format="YYYY-MM-DD"
                       style="width: 100%"
@@ -294,7 +294,7 @@
                 <el-col :span="12">
                   <el-form-item label="寄售结束日期">
                     <el-date-picker
-                      v-model="formData.consignment.consignmentEndDate"
+                      v-model="formData.consignment!.consignmentEndDate"
                       type="date"
                       value-format="YYYY-MM-DD"
                       style="width: 100%"
@@ -305,17 +305,17 @@
               <el-row :gutter="20">
                 <el-col :span="12">
                   <el-form-item label="佣金比例(%)">
-                    <el-input-number v-model="formData.consignment.commissionRate" :min="0" :max="100" style="width: 100%" />
+                    <el-input-number v-model="formData.consignment!.commissionRate" :min="0" :max="100" style="width: 100%" />
                   </el-form-item>
                 </el-col>
                 <el-col :span="12">
                   <el-form-item label="底价">
-                    <el-input-number v-model="formData.consignment.basePrice" :min="0" style="width: 100%" />
+                    <el-input-number v-model="formData.consignment!.basePrice" :min="0" style="width: 100%" />
                   </el-form-item>
                 </el-col>
               </el-row>
               <el-form-item label="寄售状态">
-                <el-select v-model="formData.consignment.status" placeholder="请选择状态" style="width: 200px">
+                <el-select v-model="formData.consignment!.status" placeholder="请选择状态" style="width: 200px">
                   <el-option label="进行中" value="active" />
                   <el-option label="已结束" value="ended" />
                   <el-option label="待开始" value="pending" />

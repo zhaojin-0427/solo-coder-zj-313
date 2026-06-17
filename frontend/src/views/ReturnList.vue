@@ -68,13 +68,13 @@
           <template #default="{ row }">
             <el-tag
               v-if="getDisputeForReturn(row.id)"
-              :type="getDisputeStatusType(getDisputeForReturn(row.id).reviewStatus)"
+              :type="getDisputeStatusType(getDisputeForReturn(row.id)!.reviewStatus)"
               effect="dark"
               size="small"
               class="dispute-tag"
               @click="handleViewDispute(getDisputeForReturn(row.id)!)"
             >
-              {{ getDisputeStatusLabel(getDisputeForReturn(row.id).reviewStatus) }}
+              {{ getDisputeStatusLabel(getDisputeForReturn(row.id)!.reviewStatus) }}
             </el-tag>
             <span v-else style="color: #c0c4cc">—</span>
           </template>
@@ -497,11 +497,13 @@ import { Plus } from '@element-plus/icons-vue'
 import { useReturnStore } from '../stores/return'
 import { useRentalStore } from '../stores/rental'
 import { useDisputeStore } from '../stores/dispute'
+import { useDressStore } from '../stores/dress'
 import type { ReturnRecord, ReturnAccessory, ReturnDamage, CreateReturnRequest, DisputeRecord, ReviewDisputeRequest } from '../types'
 
 const returnStore = useReturnStore()
 const rentalStore = useRentalStore()
 const disputeStore = useDisputeStore()
+const dressStore = useDressStore()
 
 const dialogVisible = ref(false)
 const detailVisible = ref(false)
@@ -584,7 +586,10 @@ const disputeWarning = computed(() => {
 })
 
 const inProgressRentals = computed(() => {
-  return rentalStore.rentalList.filter((r) => r.status === 'in_progress' || r.status === 'confirmed')
+  const returnedRentalIds = returnStore.returnList.map((r) => r.rentalId)
+  return rentalStore.rentalList.filter(
+    (r) => (r.status === 'in_progress' || r.status === 'confirmed') && !returnedRentalIds.includes(r.id),
+  )
 })
 
 const filteredReturnList = computed(() => {
@@ -717,11 +722,21 @@ function handleRentalChange(rentalId: string) {
     formData.dressName = rental.dressName
     currentRentalDeposit.value = rental.deposit
     currentRentalEndDate.value = rental.endDate
-    formData.accessories = [
-      { name: '原配发带/KC', isComplete: true, condition: '完好', notes: '', deductionAmount: 0, expectedQuantity: 1, actualQuantity: 1 },
-      { name: '衬裙', isComplete: true, condition: '完好', notes: '', deductionAmount: 0, expectedQuantity: 1, actualQuantity: 1 },
-      { name: '项链/配饰', isComplete: true, condition: '完好', notes: '', deductionAmount: 0, expectedQuantity: 1, actualQuantity: 1 }
-    ]
+
+    const dress = dressStore.dressList.find((d) => d.id === rental.dressId)
+    if (dress && dress.accessories && dress.accessories.length > 0) {
+      formData.accessories = dress.accessories.map((acc) => ({
+        name: acc.name,
+        expectedQuantity: acc.quantity,
+        actualQuantity: acc.quantity,
+        condition: acc.condition || '完好',
+        isComplete: true,
+        deductionAmount: 0,
+        notes: '',
+      }))
+    } else {
+      formData.accessories = []
+    }
     formData.damages = []
     calculateLateFee()
   }
@@ -847,6 +862,7 @@ onMounted(() => {
   returnStore.fetchReturnList()
   rentalStore.fetchRentalList()
   disputeStore.fetchDisputeList()
+  dressStore.fetchDressList()
 })
 </script>
 
