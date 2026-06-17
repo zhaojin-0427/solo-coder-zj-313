@@ -20,7 +20,7 @@ export class DisputesService {
       triggerReasons: [
         { type: 'accessory_missing', description: '蝴蝶结胸针缺失1个', detail: '原配2个，实际归还1个' },
         { type: 'damage_new', description: '裙摆内侧新增小污渍', detail: '严重程度：轻微' },
-        { type: 'cleaning_excessive', description: '洗护费用超过100元', detail: '实际洗护费用：80元（专业洗护）' },
+        { type: 'deduction_excessive', description: '押金扣减超过80元（实际扣减¥160）', detail: '配件扣减：¥50，损坏扣减：¥30，洗护费用：¥80' },
       ],
       deductionDetails: [
         { category: 'accessories', itemName: '蝴蝶结胸针', amount: 50, description: '遗失1个蝴蝶结胸针' },
@@ -34,10 +34,10 @@ export class DisputesService {
       currentRefundAmount: 340,
       customerNote: '胸针可能在路上掉了，污渍是穿的时候不小心弄的',
       staffNote: '顾客态度较好，愿意配合扣减',
-      reviewStatus: 'pending',
-      reviewConclusion: '',
-      reviewOperator: '',
-      reviewDate: '',
+      reviewStatus: 'approved',
+      reviewConclusion: '复核通过，同意扣减金额',
+      reviewOperator: '店主张三',
+      reviewDate: '2026-07-08',
       createdAt: '2026-07-07',
     },
   ];

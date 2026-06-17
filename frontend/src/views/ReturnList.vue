@@ -589,7 +589,9 @@ const inProgressRentals = computed(() => {
 
 const filteredReturnList = computed(() => {
   let list = returnStore.returnList
-  if (filterStatus.value) {
+  if (filterStatus.value === 'disputed') {
+    list = list.filter((r) => getDisputeForReturn(r.id))
+  } else if (filterStatus.value) {
     list = list.filter((r) => r.status === filterStatus.value)
   }
   return list
