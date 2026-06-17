@@ -16,23 +16,27 @@ export class DisputesService {
       rentalId: '2',
       dressId: '1',
       dressName: 'Angelic Pretty 云境花影 JSK',
+      outfitId: '1',
+      outfitName: '云端花嫁',
+      isOutfitDispute: true,
       userName: '玲玲',
       triggerReasons: [
+        { type: 'accessory_missing', description: '套装单品遗失：白色蕾丝高跟鞋', detail: '归还时鞋包单品未归还' },
         { type: 'accessory_missing', description: '蝴蝶结胸针缺失1个', detail: '原配2个，实际归还1个' },
         { type: 'damage_new', description: '裙摆内侧新增小污渍', detail: '严重程度：轻微' },
-        { type: 'deduction_excessive', description: '押金扣减超过80元（实际扣减¥160）', detail: '配件扣减：¥50，损坏扣减：¥30，洗护费用：¥80' },
+        { type: 'deduction_excessive', description: '押金扣减超过80元（实际扣减¥310）', detail: '套装单品扣减：¥150，配件扣减：¥50，损坏扣减：¥30，洗护费用：¥80' },
       ],
       deductionDetails: [
+        { category: 'outfit_items', itemName: '白色蕾丝高跟鞋', amount: 150, description: '套装单品遗失' },
         { category: 'accessories', itemName: '蝴蝶结胸针', amount: 50, description: '遗失1个蝴蝶结胸针' },
         { category: 'damage', itemName: '裙摆污渍', amount: 30, description: '裙摆内侧新增小污渍' },
         { category: 'cleaning', itemName: '专业洗护', amount: 80, description: '需要专业清洗' },
-        { category: 'late', itemName: '逾期费用', amount: 0, description: '未逾期' },
       ],
-      originalDeposit: 500,
-      originalTotalDeduction: 160,
-      originalRefundAmount: 340,
-      currentRefundAmount: 340,
-      customerNote: '胸针可能在路上掉了，污渍是穿的时候不小心弄的',
+      originalDeposit: 1060,
+      originalTotalDeduction: 310,
+      originalRefundAmount: 750,
+      currentRefundAmount: 750,
+      customerNote: '高跟鞋可能在路上掉了，胸针可能忘在袋子里了，污渍是穿的时候不小心弄的',
       staffNote: '顾客态度较好，愿意配合扣减',
       reviewStatus: 'approved',
       reviewConclusion: '复核通过，同意扣减金额',
@@ -49,6 +53,9 @@ export class DisputesService {
       rentalId: createDisputeDto.rentalId,
       dressId: createDisputeDto.dressId,
       dressName: createDisputeDto.dressName,
+      outfitId: createDisputeDto.outfitId,
+      outfitName: createDisputeDto.outfitName,
+      isOutfitDispute: createDisputeDto.isOutfitDispute,
       userName: createDisputeDto.userName,
       triggerReasons: createDisputeDto.triggerReasons,
       deductionDetails: createDisputeDto.deductionDetails,
@@ -166,6 +173,26 @@ export class DisputesService {
   ): DisputeRecord | null {
     const triggerReasons: DisputeTriggerReason[] = [];
     const deductionDetails: DeductionDetail[] = [];
+    const isOutfitDispute = returnRecord.isOutfitReturn === true;
+
+    if (isOutfitDispute && returnRecord.outfitItems) {
+      const missingItems = returnRecord.outfitItems.filter((i: any) => !i.isReturned);
+      if (missingItems.length > 0) {
+        triggerReasons.push({
+          type: 'accessory_missing',
+          description: `套装单品遗失：${missingItems.map((i: any) => i.name).join('、')}`,
+          detail: `共${returnRecord.outfitItems.length}件单品，${missingItems.length}件未归还`,
+        });
+        missingItems.forEach((item: any) => {
+          deductionDetails.push({
+            category: 'outfit_items',
+            itemName: item.name,
+            amount: item.deductionAmount || 100,
+            description: `套装单品遗失（${item.typeName}）`,
+          });
+        });
+      }
+    }
 
     const hasMissingAccessory = returnRecord.accessories?.some(
       (a: any) => !a.isComplete,
@@ -201,14 +228,17 @@ export class DisputesService {
       });
     }
 
+    const outfitItemsDeduction = returnRecord.totalOutfitItemsDeduction || 0;
     const accessoriesDeduction = returnRecord.totalAccessoriesDeduction || 0;
     const damageDeduction = returnRecord.totalDamageDeduction || 0;
-    const totalDeductionExceptLate = accessoriesDeduction + damageDeduction + returnRecord.cleaningCost;
+    const totalDeductionExceptLate = outfitItemsDeduction + accessoriesDeduction + damageDeduction + returnRecord.cleaningCost;
     if (totalDeductionExceptLate > 80) {
       triggerReasons.push({
         type: 'deduction_excessive',
         description: `押金扣减超过80元（实际扣减¥${totalDeductionExceptLate}）`,
-        detail: `配件扣减：¥${accessoriesDeduction}，损坏扣减：¥${damageDeduction}，洗护费用：¥${returnRecord.cleaningCost}`,
+        detail: isOutfitDispute
+          ? `套装单品扣减：¥${outfitItemsDeduction}，配件扣减：¥${accessoriesDeduction}，损坏扣减：¥${damageDeduction}，洗护费用：¥${returnRecord.cleaningCost}`
+          : `配件扣减：¥${accessoriesDeduction}，损坏扣减：¥${damageDeduction}，洗护费用：¥${returnRecord.cleaningCost}`,
       });
     }
 
@@ -270,6 +300,9 @@ export class DisputesService {
       rentalId: returnRecord.rentalId,
       dressId: returnRecord.dressId,
       dressName: returnRecord.dressName,
+      outfitId: returnRecord.outfitId,
+      outfitName: returnRecord.outfitName,
+      isOutfitDispute,
       userName: returnRecord.userName,
       triggerReasons,
       deductionDetails,

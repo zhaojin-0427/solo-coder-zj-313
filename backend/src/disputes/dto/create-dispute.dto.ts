@@ -22,6 +22,17 @@ export class CreateDisputeDto {
   @IsString()
   dressName: string;
 
+  @IsOptional()
+  @IsString()
+  outfitId?: string;
+
+  @IsOptional()
+  @IsString()
+  outfitName?: string;
+
+  @IsOptional()
+  isOutfitDispute?: boolean;
+
   @IsString()
   userName: string;
 

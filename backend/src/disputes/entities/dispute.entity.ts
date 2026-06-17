@@ -5,7 +5,7 @@ export interface DisputeTriggerReason {
 }
 
 export interface DeductionDetail {
-  category: 'accessories' | 'damage' | 'cleaning' | 'late';
+  category: 'accessories' | 'damage' | 'cleaning' | 'late' | 'outfit_items';
   itemName: string;
   amount: number;
   description: string;
@@ -17,6 +17,9 @@ export class DisputeRecord {
   rentalId: string;
   dressId: string;
   dressName: string;
+  outfitId?: string;
+  outfitName?: string;
+  isOutfitDispute: boolean;
   userName: string;
   triggerReasons: DisputeTriggerReason[];
   deductionDetails: DeductionDetail[];

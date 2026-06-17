@@ -533,7 +533,10 @@
             </el-tag>
           </div>
         </el-descriptions-item>
-        <el-descriptions-item label="关联裙子">{{ currentDetailDispute.dressName }}</el-descriptions-item>
+        <el-descriptions-item v-if="currentDetailDispute.isOutfitDispute" label="关联套装">
+          <el-tag type="success" size="small">{{ currentDetailDispute.outfitName }}</el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item v-else label="关联裙子">{{ currentDetailDispute.dressName }}</el-descriptions-item>
         <el-descriptions-item label="关联预约">{{ currentDetailDispute.rentalId }}</el-descriptions-item>
         <el-descriptions-item label="扣减明细" :span="2">
           <div class="deduction-list">
@@ -825,6 +828,7 @@ function getCategoryLabel(category: string) {
     damage: '损坏',
     cleaning: '洗护',
     late: '逾期',
+    outfit_items: '套装单品',
   }
   return map[category] || category
 }
