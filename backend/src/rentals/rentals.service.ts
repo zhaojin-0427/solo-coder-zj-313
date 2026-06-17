@@ -1,0 +1,286 @@
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { CreateRentalDto } from './dto/create-rental.dto';
+import { UpdateRentalDto } from './dto/update-rental.dto';
+import { Rental, FitRiskAssessment, UserInfo } from './entities/rental.entity';
+import { DressesService } from '../dresses/dresses.service';
+import { FittingsService } from '../fittings/fittings.service';
+
+@Injectable()
+export class RentalsService {
+  private rentals: Rental[] = [
+    {
+      id: '1',
+      dressId: '2',
+      dressName: 'Baby, the Stars 玫瑰庭园 OP',
+      userInfo: {
+        name: '小美',
+        phone: '138****0001',
+        height: 165,
+        weight: 52,
+        bust: 90,
+        waist: 72,
+        hip: 94,
+        tryOnPreference: '希望稍微宽松一些',
+        usageScenario: '生日派对',
+        notes: '第一次租lo裙',
+      },
+      startDate: '2026-06-18',
+      endDate: '2026-06-22',
+      totalDays: 4,
+      totalPrice: 480,
+      deposit: 800,
+      status: 'in_progress',
+      fitRiskAssessment: {
+        riskLevel: 'low',
+        score: 15,
+        factors: ['胸围在尺码范围内', '腰围在尺码范围内'],
+        suggestions: ['建议搭配薄款裙撑', '可以放心穿着'],
+      },
+      createdAt: '2026-06-10',
+    },
+    {
+      id: '2',
+      dressId: '1',
+      dressName: 'Angelic Pretty 云境花影 JSK',
+      userInfo: {
+        name: '玲玲',
+        phone: '139****0002',
+        height: 158,
+        weight: 48,
+        bust: 86,
+        waist: 68,
+        hip: 90,
+        tryOnPreference: '喜欢修身效果',
+        usageScenario: '漫展',
+        notes: '有多年lo裙穿着经验',
+      },
+      startDate: '2026-07-01',
+      endDate: '2026-07-07',
+      totalDays: 6,
+      totalPrice: 534,
+      deposit: 500,
+      status: 'confirmed',
+      fitRiskAssessment: {
+        riskLevel: 'low',
+        score: 10,
+        factors: ['身材比例标准', '尺码非常合适'],
+        suggestions: ['搭配蓬蓬裙撑效果更佳', '建议穿白色打底衫'],
+      },
+      createdAt: '2026-06-15',
+    },
+    {
+      id: '3',
+      dressId: '5',
+      dressName: 'Alice and the Pirates 海盗船 OP',
+      userInfo: {
+        name: '酷酷',
+        phone: '137****0003',
+        height: 172,
+        weight: 65,
+        bust: 98,
+        waist: 80,
+        hip: 100,
+        tryOnPreference: '希望不紧绷',
+        usageScenario: '万圣节派对',
+        notes: '身高较高，担心长度不够',
+      },
+      startDate: '2026-08-01',
+      endDate: '2026-08-07',
+      totalDays: 6,
+      totalPrice: 594,
+      deposit: 700,
+      status: 'pending',
+      fitRiskAssessment: {
+        riskLevel: 'medium',
+        score: 55,
+        factors: ['胸围接近上限', '身高较高，裙长可能偏短'],
+        suggestions: ['建议试穿后再决定', '可以搭配长款衬裙', '考虑搭配高跟鞋'],
+      },
+      createdAt: '2026-06-16',
+    },
+  ];
+
+  constructor(
+    private readonly dressesService: DressesService,
+    private readonly fittingsService: FittingsService,
+  ) {}
+
+  create(createRentalDto: CreateRentalDto): Rental {
+    const dress = this.dressesService.findOne(createRentalDto.dressId);
+    const start = new Date(createRentalDto.startDate);
+    const end = new Date(createRentalDto.endDate);
+    const totalDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    const totalPrice = totalDays * dress.dailyPrice;
+
+    const fitRiskAssessment = this.assessFitRisk(
+      createRentalDto.userInfo,
+      dress.sizeRange,
+      createRentalDto.dressId,
+    );
+
+    const newRental: Rental = {
+      id: Date.now().toString(),
+      dressId: createRentalDto.dressId,
+      dressName: dress.name,
+      userInfo: createRentalDto.userInfo,
+      startDate: createRentalDto.startDate,
+      endDate: createRentalDto.endDate,
+      totalDays,
+      totalPrice,
+      deposit: dress.deposit,
+      status: 'pending',
+      fitRiskAssessment,
+      createdAt: new Date().toISOString().split('T')[0],
+    };
+
+    this.rentals.push(newRental);
+    return newRental;
+  }
+
+  findAll(): Rental[] {
+    return this.rentals;
+  }
+
+  findOne(id: string): Rental {
+    const rental = this.rentals.find((r) => r.id === id);
+    if (!rental) {
+      throw new NotFoundException(`Rental with id ${id} not found`);
+    }
+    return rental;
+  }
+
+  update(id: string, updateRentalDto: UpdateRentalDto): Rental {
+    const rentalIndex = this.rentals.findIndex((r) => r.id === id);
+    if (rentalIndex === -1) {
+      throw new NotFoundException(`Rental with id ${id} not found`);
+    }
+    this.rentals[rentalIndex] = {
+      ...this.rentals[rentalIndex],
+      ...updateRentalDto,
+    };
+    return this.rentals[rentalIndex];
+  }
+
+  remove(id: string): void {
+    const rentalIndex = this.rentals.findIndex((r) => r.id === id);
+    if (rentalIndex === -1) {
+      throw new NotFoundException(`Rental with id ${id} not found`);
+    }
+    this.rentals.splice(rentalIndex, 1);
+  }
+
+  assessFitRisk(
+    userInfo: UserInfo,
+    sizeRange: { bust: { min: number; max: number }; waist: { min: number; max: number }; hip: { min: number; max: number }; length: number },
+    dressId: string,
+  ): FitRiskAssessment {
+    let score = 0;
+    const factors: string[] = [];
+    const suggestions: string[] = [];
+
+    const bustRange = sizeRange.bust.max - sizeRange.bust.min;
+    const waistRange = sizeRange.waist.max - sizeRange.waist.min;
+    const hipRange = sizeRange.hip.max - sizeRange.hip.min;
+
+    const bustMid = (sizeRange.bust.max + sizeRange.bust.min) / 2;
+    const waistMid = (sizeRange.waist.max + sizeRange.waist.min) / 2;
+    const hipMid = (sizeRange.hip.max + sizeRange.hip.min) / 2;
+
+    if (userInfo.bust < sizeRange.bust.min) {
+      score += 20;
+      factors.push('胸围小于最小尺码');
+      suggestions.push('可能会比较宽松，建议搭配胸垫');
+    } else if (userInfo.bust > sizeRange.bust.max) {
+      score += 30;
+      factors.push('胸围超过最大尺码');
+      suggestions.push('可能会紧绷，建议慎重考虑');
+    } else {
+      const bustDeviation = Math.abs(userInfo.bust - bustMid) / bustRange;
+      score += bustDeviation * 15;
+      if (bustDeviation < 0.3) {
+        factors.push('胸围在尺码中间位置，非常合适');
+      } else {
+        factors.push('胸围在尺码范围内');
+      }
+    }
+
+    if (userInfo.waist < sizeRange.waist.min) {
+      score += 15;
+      factors.push('腰围小于最小尺码');
+      suggestions.push('腰部可能会松，可以系腰带装饰');
+    } else if (userInfo.waist > sizeRange.waist.max) {
+      score += 25;
+      factors.push('腰围超过最大尺码');
+      suggestions.push('腰部可能紧绷，建议选择更大码');
+    } else {
+      const waistDeviation = Math.abs(userInfo.waist - waistMid) / waistRange;
+      score += waistDeviation * 10;
+      factors.push('腰围在尺码范围内');
+    }
+
+    if (userInfo.hip < sizeRange.hip.min) {
+      score += 10;
+      factors.push('臀围小于最小尺码');
+    } else if (userInfo.hip > sizeRange.hip.max) {
+      score += 20;
+      factors.push('臀围超过最大尺码');
+      suggestions.push('臀部可能紧绷');
+    } else {
+      const hipDeviation = Math.abs(userInfo.hip - hipMid) / hipRange;
+      score += hipDeviation * 8;
+      factors.push('臀围在尺码范围内');
+    }
+
+    const estimatedLength = userInfo.height * 0.55;
+    if (sizeRange.length < estimatedLength - 5) {
+      score += 15;
+      factors.push('裙长可能偏短');
+      suggestions.push('建议搭配长款衬裙或安全裤');
+    } else if (sizeRange.length > estimatedLength + 10) {
+      score += 5;
+      factors.push('裙长可能偏长');
+      suggestions.push('可以穿高跟鞋调整比例');
+    }
+
+    const fittings = this.fittingsService.findByDressId(dressId);
+    if (fittings.length > 0) {
+      const avgFitScore = fittings.reduce((sum, f) => sum + f.fitScore, 0) / fittings.length;
+      if (avgFitScore < 3) {
+        score += 10;
+        factors.push(`历史试穿平均合身度评分较低(${avgFitScore.toFixed(1)}/5)`);
+        suggestions.push('建议参考其他用户的试穿反馈');
+      } else if (avgFitScore >= 4) {
+        score -= 5;
+        factors.push(`历史试穿平均合身度评分良好(${avgFitScore.toFixed(1)}/5)`);
+      }
+    }
+
+    score = Math.max(0, Math.min(100, score));
+
+    let riskLevel: 'low' | 'medium' | 'high';
+    if (score < 30) {
+      riskLevel = 'low';
+      if (suggestions.length === 0) {
+        suggestions.push('尺码非常合适，可以放心穿着');
+      }
+    } else if (score < 60) {
+      riskLevel = 'medium';
+      suggestions.push('建议试穿后确认是否合适');
+    } else {
+      riskLevel = 'high';
+      suggestions.unshift('合身风险较高，建议慎重选择');
+    }
+
+    return {
+      riskLevel,
+      score: Math.round(score),
+      factors,
+      suggestions,
+    };
+  }
+
+  getFitRisk(dressId: string, userInfo: UserInfo): FitRiskAssessment {
+    const dress = this.dressesService.findOne(dressId);
+    return this.assessFitRisk(userInfo, dress.sizeRange, dressId);
+  }
+}
