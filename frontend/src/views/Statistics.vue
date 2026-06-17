@@ -435,6 +435,112 @@
         </el-card>
       </el-col>
     </el-row>
+
+    <el-divider content-position="left">会员信用统计</el-divider>
+
+    <el-row :gutter="20" class="stats-cards">
+      <el-col :span="4">
+        <el-card class="stat-card">
+          <div class="stat-item">
+            <div class="stat-icon member-icon">
+              <el-icon><User /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value">{{ memberStore.memberStats?.totalMembers || 0 }}</div>
+              <div class="stat-label">会员总数</div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="4">
+        <el-card class="stat-card">
+          <div class="stat-item">
+            <div class="stat-icon high-risk-icon">
+              <el-icon><Warning /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value">{{ memberStore.memberStats?.highRiskMembers || 0 }}</div>
+              <div class="stat-label">高风险会员数</div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="4">
+        <el-card class="stat-card">
+          <div class="stat-item">
+            <div class="stat-icon avg-credit-icon">
+              <el-icon><Star /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value">{{ memberStore.memberStats?.avgCreditScore?.toFixed(1) || '0.0' }}</div>
+              <div class="stat-label">平均信用分</div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="4">
+        <el-card class="stat-card">
+          <div class="stat-item">
+            <div class="stat-icon reduction-icon">
+              <el-icon><Wallet /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value">¥{{ memberStore.memberStats?.totalDepositReduction || 0 }}</div>
+              <div class="stat-label">押金减免总额</div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="4">
+        <el-card class="stat-card">
+          <div class="stat-item">
+            <div class="stat-icon overdue-icon">
+              <el-icon><Clock /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value">{{ memberStore.memberStats?.overdueRateAfterReduction?.toFixed(1) || '0.0' }}%</div>
+              <div class="stat-label">减免后逾期率</div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="4">
+        <el-card class="stat-card">
+          <div class="stat-item">
+            <div class="stat-icon deduction-icon">
+              <el-icon><UserFilled /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value">{{ memberStore.memberStats?.recentDeductionMembers || 0 }}</div>
+              <div class="stat-label">近期扣减会员</div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
+
+    <el-row :gutter="20" class="chart-row">
+      <el-col :span="12">
+        <el-card class="chart-card">
+          <template #header>
+            <div class="card-header">
+              <span>信用等级分布</span>
+            </div>
+          </template>
+          <v-chart class="chart" :option="creditLevelDistributionOption" autoresize />
+        </el-card>
+      </el-col>
+      <el-col :span="12">
+        <el-card class="chart-card">
+          <template #header>
+            <div class="card-header">
+              <span>信用分变动趋势</span>
+            </div>
+          </template>
+          <v-chart class="chart" :option="creditScoreTrendOption" autoresize />
+        </el-card>
+      </el-col>
+    </el-row>
   </div>
 </template>
 
@@ -457,6 +563,7 @@ import {
   GridComponent
 } from 'echarts/components'
 import { useStatsStore } from '../stores/stats'
+import { useMemberStore } from '../stores/member'
 import {
   Collection,
   ShoppingCart,
@@ -468,7 +575,9 @@ import {
   TrendCharts,
   Warning,
   Clock,
-  Suitcase
+  Suitcase,
+  User,
+  UserFilled
 } from '@element-plus/icons-vue'
 
 use([
@@ -483,6 +592,7 @@ use([
 ])
 
 const statsStore = useStatsStore()
+const memberStore = useMemberStore()
 
 const patternRentalRateOption = computed(() => {
   const data = statsStore.patternRentalRate || []
@@ -1271,8 +1381,125 @@ const outfitScenarioOption = computed(() => {
   }
 })
 
+const creditLevelDistributionOption = computed(() => {
+  const memberStats = memberStore.memberStats
+  if (!memberStats || memberStats.totalMembers === 0) {
+    return {
+      title: { text: '暂无数据', left: 'center', top: 'center', textStyle: { color: '#c0c4cc', fontSize: 14 } }
+    }
+  }
+  const pieData = [
+    { value: memberStats.creditLevelDistribution.S, name: 'S级' },
+    { value: memberStats.creditLevelDistribution.A, name: 'A级' },
+    { value: memberStats.creditLevelDistribution.B, name: 'B级' },
+    { value: memberStats.creditLevelDistribution.C, name: 'C级' },
+    { value: memberStats.creditLevelDistribution.D, name: 'D级' },
+  ]
+  return {
+    tooltip: {
+      trigger: 'item',
+      formatter: (params: any) => {
+        const percent = memberStats.totalMembers > 0
+          ? ((params.value / memberStats.totalMembers) * 100).toFixed(1)
+          : 0
+        return `${params.name}<br/>人数: ${params.value}<br/>占比: ${percent}%`
+      }
+    },
+    legend: {
+      orient: 'vertical',
+      left: 'left',
+      top: 'center'
+    },
+    series: [
+      {
+        name: '信用等级分布',
+        type: 'pie',
+        radius: ['40%', '70%'],
+        center: ['65%', '50%'],
+        avoidLabelOverlap: false,
+        itemStyle: {
+          borderRadius: 4,
+          borderColor: '#fff',
+          borderWidth: 2
+        },
+        label: {
+          show: true,
+          formatter: '{b}\n{c}人\n{d}%'
+        },
+        data: pieData,
+        color: ['#67c23a', '#409eff', '#e6a23c', '#f56c6c', '#909399']
+      }
+    ]
+  }
+})
+
+const creditScoreTrendOption = computed(() => {
+  const trendData = memberStore.memberStats?.creditScoreTrend || []
+  if (trendData.length === 0) {
+    return {
+      title: { text: '暂无数据', left: 'center', top: 'center', textStyle: { color: '#c0c4cc', fontSize: 14 } }
+    }
+  }
+  return {
+    tooltip: {
+      trigger: 'axis',
+      formatter: (params: any) => {
+        return `${params[0].name}<br/>平均信用分: ${params[0]?.value || 0}分`
+      }
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      top: '10%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      boundaryGap: false,
+      data: trendData.map(item => item.date),
+      axisLabel: {
+        fontSize: 11
+      }
+    },
+    yAxis: {
+      type: 'value',
+      name: '信用分',
+      min: 0,
+      max: 100
+    },
+    series: [
+      {
+        name: '平均信用分',
+        type: 'line',
+        smooth: true,
+        data: trendData.map(item => item.avgScore),
+        itemStyle: {
+          color: '#e74c8c'
+        },
+        areaStyle: {
+          color: {
+            type: 'linear',
+            x: 0,
+            y: 0,
+            x2: 0,
+            y2: 1,
+            colorStops: [
+              { offset: 0, color: 'rgba(231, 76, 140, 0.3)' },
+              { offset: 1, color: 'rgba(231, 76, 140, 0.05)' }
+            ]
+          }
+        },
+        symbol: 'circle',
+        symbolSize: 8
+      }
+    ]
+  }
+})
+
 onMounted(() => {
   statsStore.fetchAllStats()
+  memberStore.fetchMemberStats()
 })
 </script>
 
@@ -1396,6 +1623,30 @@ onMounted(() => {
 
 .outfit-price-icon {
   background: linear-gradient(135deg, #f39c12, #f9e79f);
+}
+
+.member-icon {
+  background: linear-gradient(135deg, #409eff, #79bbff);
+}
+
+.high-risk-icon {
+  background: linear-gradient(135deg, #f56c6c, #fab6b6);
+}
+
+.avg-credit-icon {
+  background: linear-gradient(135deg, #e6a23c, #f3d19e);
+}
+
+.reduction-icon {
+  background: linear-gradient(135deg, #67c23a, #95d475);
+}
+
+.overdue-icon {
+  background: linear-gradient(135deg, #e74c8c, #ff9ec4);
+}
+
+.deduction-icon {
+  background: linear-gradient(135deg, #9b59b6, #c39bd3);
 }
 
 .stat-info {

@@ -5,14 +5,19 @@ import { ReturnRecord } from './entities/return.entity';
 import { DisputesService } from '../disputes/disputes.service';
 import { RentalsService } from '../rentals/rentals.service';
 import { OutfitsService } from '../outfits/outfits.service';
+import { MembersService } from '../members/members.service';
 
 @Injectable()
 export class ReturnsService {
   constructor(
     @Inject(forwardRef(() => DisputesService))
     private readonly disputesService: DisputesService,
+    @Inject(forwardRef(() => RentalsService))
     private readonly rentalsService: RentalsService,
+    @Inject(forwardRef(() => OutfitsService))
     private readonly outfitsService: OutfitsService,
+    @Inject(forwardRef(() => MembersService))
+    private readonly membersService: MembersService,
   ) {}
   private returns: ReturnRecord[] = [
     {
@@ -267,6 +272,57 @@ export class ReturnsService {
     );
     if (dispute) {
       newReturn.status = 'disputed';
+    }
+
+    const member = this.membersService.findByPhone(rental.userInfo.phone);
+    if (member && newReturn.status === 'completed') {
+      this.membersService.incrementCompletedRental(member.id);
+
+      if (isLate) {
+        this.membersService.updateCredit(member.id, -8, `逾期归还${lateDays}天`, newReturn.id, 'return');
+        this.membersService.incrementLateReturn(member.id);
+      } else {
+        this.membersService.updateCredit(member.id, 3, '准时归还', newReturn.id, 'return');
+      }
+
+      if (accessoriesComplete) {
+        this.membersService.updateCredit(member.id, 2, '配件完整归还', newReturn.id, 'return');
+      } else {
+        const missingCount = createReturnDto.accessories.filter((a) => !a.isComplete).length;
+        this.membersService.updateCredit(member.id, -2 * missingCount, '配件缺失', newReturn.id, 'return');
+      }
+
+      if (createReturnDto.isOutfitReturn && createReturnDto.outfitItems) {
+        if (outfitComplete) {
+          this.membersService.updateCredit(member.id, 2, '套装单品完整归还', newReturn.id, 'return');
+        } else {
+          const missingItems = createReturnDto.outfitItems.filter((i) => !i.isReturned).length;
+          this.membersService.updateCredit(member.id, -3 * missingItems, '套装单品遗失', newReturn.id, 'return');
+        }
+      }
+
+      const hasNewDamage = createReturnDto.damages.some((d) => d.isNew);
+      if (!hasNewDamage) {
+        this.membersService.updateCredit(member.id, 2, '无新增瑕疵', newReturn.id, 'return');
+      } else {
+        const newDamageCount = createReturnDto.damages.filter((d) => d.isNew).length;
+        this.membersService.updateCredit(member.id, -3 * newDamageCount, '新增瑕疵', newReturn.id, 'return');
+      }
+
+      if (totalDeduction > 0) {
+        this.membersService.addDeductionRecord(
+          member.id,
+          rental.id,
+          rental.deposit,
+          totalDeduction,
+          refundAmount,
+          createReturnDto.notes || '归还验收扣减',
+          newReturn.id,
+        );
+        if (totalDeduction > 200) {
+          this.membersService.updateCredit(member.id, -10, `高额押金扣减(¥${totalDeduction})`, newReturn.id, 'return');
+        }
+      }
     }
 
     return newReturn;

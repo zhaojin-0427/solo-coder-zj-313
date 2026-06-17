@@ -6,6 +6,7 @@ import { DressesService } from '../dresses/dresses.service';
 import { FittingsService } from '../fittings/fittings.service';
 import { OutfitsService } from '../outfits/outfits.service';
 import { ConsignmentsService } from '../consignments/consignments.service';
+import { MembersService } from '../members/members.service';
 
 @Injectable()
 export class RentalsService {
@@ -196,11 +197,14 @@ export class RentalsService {
 
   constructor(
     private readonly dressesService: DressesService,
+    @Inject(forwardRef(() => FittingsService))
     private readonly fittingsService: FittingsService,
     @Inject(forwardRef(() => OutfitsService))
     private readonly outfitsService: OutfitsService,
     @Inject(forwardRef(() => ConsignmentsService))
     private readonly consignmentsService: ConsignmentsService,
+    @Inject(forwardRef(() => MembersService))
+    private readonly membersService: MembersService,
   ) {}
 
   create(createRentalDto: CreateRentalDto): Rental {
@@ -249,6 +253,14 @@ export class RentalsService {
     };
 
     this.rentals.push(newRental);
+
+    const member = this.membersService.findOrCreateByUserInfo(
+      createRentalDto.userInfo.name,
+      createRentalDto.userInfo.phone,
+    );
+    this.membersService.updateCredit(member.id, 2, '创建预约', newRental.id, 'rental');
+    this.membersService.incrementRentalCount(member.id);
+
     return newRental;
   }
 
@@ -350,6 +362,14 @@ export class RentalsService {
 
     this.rentals.push(newRental);
     this.outfitsService.incrementRentalCount(outfit.id);
+
+    const member = this.membersService.findOrCreateByUserInfo(
+      createRentalDto.userInfo.name,
+      createRentalDto.userInfo.phone,
+    );
+    this.membersService.updateCredit(member.id, 2, '创建预约(套装)', newRental.id, 'rental');
+    this.membersService.incrementRentalCount(member.id);
+
     return newRental;
   }
 
@@ -428,10 +448,21 @@ export class RentalsService {
     if (rentalIndex === -1) {
       throw new NotFoundException(`Rental with id ${id} not found`);
     }
+    const oldStatus = this.rentals[rentalIndex].status;
     this.rentals[rentalIndex] = {
       ...this.rentals[rentalIndex],
       ...updateRentalDto,
     } as Rental;
+
+    if (oldStatus !== 'cancelled' && updateRentalDto.status === 'cancelled') {
+      const rental = this.rentals[rentalIndex];
+      const member = this.membersService.findByPhone(rental.userInfo.phone);
+      if (member) {
+        this.membersService.updateCredit(member.id, -5, '取消预约', rental.id, 'rental');
+        this.membersService.incrementCancelledRental(member.id);
+      }
+    }
+
     return this.rentals[rentalIndex];
   }
 

@@ -29,4 +29,9 @@ export class StatisticsController {
   getOutfitStats() {
     return this.statisticsService.getOutfitStats();
   }
+
+  @Get('members')
+  getMemberStats() {
+    return this.statisticsService.getMemberStats();
+  }
 }

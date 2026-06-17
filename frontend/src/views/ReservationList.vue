@@ -215,15 +215,109 @@
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="用户姓名" prop="userInfo.name">
-              <el-input v-model="formData.userInfo.name" placeholder="请输入姓名" />
+              <el-input v-model="formData.userInfo.name" placeholder="请输入姓名" @blur="handleUserInfoChange" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="联系电话" prop="userInfo.phone">
-              <el-input v-model="formData.userInfo.phone" placeholder="请输入手机号" />
+              <el-input v-model="formData.userInfo.phone" placeholder="请输入手机号" @blur="handleUserInfoChange" />
             </el-form-item>
           </el-col>
         </el-row>
+
+        <el-alert
+          v-if="currentMember"
+          :title="'会员信息：' + currentMember.name + '（' + currentMember.creditLevel + '级 - ' + currentMember.creditScore + '分）'"
+          type="info"
+          :closable="false"
+          show-icon
+          style="margin-bottom: 12px"
+        >
+          <template #default>
+            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap">
+              <el-tag :type="getCreditLevelType(currentMember.creditLevel)" effect="dark" size="small">
+                信用等级：{{ currentMember.creditLevel }}级
+              </el-tag>
+              <span>信用分：{{ currentMember.creditScore }}分</span>
+              <span>历史租赁：{{ currentMember.totalRentals }}次</span>
+              <span>累计扣减：¥{{ currentMember.totalDeductions }}</span>
+            </div>
+          </template>
+        </el-alert>
+
+        <el-alert
+          v-if="depositReductionResult && depositReductionResult.canReduce"
+          title="押金减免计算结果"
+          type="success"
+          :closable="false"
+          show-icon
+          style="margin-bottom: 12px"
+        >
+          <template #default>
+            <div class="reduction-result">
+              <div class="reduction-row">
+                <span>原始押金：</span>
+                <strong>¥{{ formData.deposit }}</strong>
+              </div>
+              <div class="reduction-row">
+                <span>减免比例：</span>
+                <strong class="text-success">{{ (depositReductionResult.reductionRatio * 100).toFixed(0) }}%</strong>
+              </div>
+              <div class="reduction-row">
+                <span>减免金额：</span>
+                <strong class="text-success">-¥{{ depositReductionResult.reductionAmount }}</strong>
+              </div>
+              <div class="reduction-row">
+                <span>应缴押金：</span>
+                <strong style="font-size: 18px; color: #e74c8c">¥{{ depositReductionResult.adjustedDeposit }}</strong>
+              </div>
+              <el-tag
+                v-if="depositReductionResult.needManualReview"
+                type="warning"
+                effect="dark"
+                size="small"
+                style="margin-top: 8px"
+              >
+                ⚠️ 需要人工审核确认
+              </el-tag>
+              <div v-if="depositReductionResult.riskWarnings.length > 0" class="risk-warnings">
+                <div v-for="(warning, index) in depositReductionResult.riskWarnings" :key="index" class="warning-item">
+                  ⚠️ {{ warning }}
+                </div>
+              </div>
+            </div>
+          </template>
+        </el-alert>
+
+        <el-alert
+          v-if="depositReductionResult && !depositReductionResult.canReduce"
+          title="押金减免不可用"
+          type="error"
+          :closable="false"
+          show-icon
+          style="margin-bottom: 12px"
+        >
+          <template #default>
+            <div class="reduction-result">
+              <div class="reduction-row">
+                <span>原始押金：</span>
+                <strong>¥{{ formData.deposit }}</strong>
+              </div>
+              <div class="reduction-row">
+                <span>应缴押金：</span>
+                <strong style="font-size: 18px; color: #e74c8c">¥{{ formData.deposit }}</strong>
+              </div>
+              <div v-if="depositReductionResult.reason" class="reason-text">
+                原因：{{ depositReductionResult.reason }}
+              </div>
+              <div v-if="depositReductionResult.riskWarnings.length > 0" class="risk-warnings">
+                <div v-for="(warning, index) in depositReductionResult.riskWarnings" :key="index" class="warning-item">
+                  ⚠️ {{ warning }}
+                </div>
+              </div>
+            </div>
+          </template>
+        </el-alert>
         <el-row :gutter="20">
           <el-col :span="8">
             <el-form-item label="身高(cm)" prop="userInfo.height">
@@ -414,14 +508,20 @@ import { useRentalStore } from '../stores/rental'
 import { useDressStore } from '../stores/dress'
 import { useOutfitStore } from '../stores/outfit'
 import { useConsignmentStore } from '../stores/consignment'
+import { useMemberStore } from '../stores/member'
 import { calculateFitRisk } from '../api/rental'
 import { getOutfitFitRisk } from '../api/outfit'
-import type { Rental, FitRiskAssessment, CreateRentalRequest, Outfit, OutfitAvailabilityCheckResult, OutfitItem } from '../types'
+import type { Rental, FitRiskAssessment, CreateRentalRequest, Outfit, OutfitAvailabilityCheckResult, OutfitItem, DepositReductionResult, Member } from '../types'
 
 const rentalStore = useRentalStore()
 const dressStore = useDressStore()
 const outfitStore = useOutfitStore()
 const consignmentStore = useConsignmentStore()
+const memberStore = useMemberStore()
+
+const currentMember = ref<Member | null>(null)
+const depositReductionResult = ref<DepositReductionResult | null>(null)
+const calculatingReduction = ref(false)
 
 const searchForm = reactive({
   status: ''
@@ -650,6 +750,7 @@ function handleDressChange(dressId: string) {
     formData.deposit = dress.deposit
     calculateTotalPrice()
     calculateRisk()
+    calculateDepositReduction()
   }
 }
 
@@ -661,6 +762,7 @@ function handleOutfitChange(outfitId: string) {
     calculateTotalPrice()
     calculateRisk()
     checkOutfitAvailability()
+    calculateDepositReduction()
   }
 }
 
@@ -749,6 +851,52 @@ async function calculateRisk() {
   }
 }
 
+async function handleUserInfoChange() {
+  if (formData.userInfo.phone && formData.userInfo.name) {
+    await memberStore.fetchMemberList()
+    const foundMember = memberStore.memberList.find(
+      (m) => m.phone === formData.userInfo.phone
+    )
+    currentMember.value = foundMember || null
+    await calculateDepositReduction()
+  } else {
+    currentMember.value = null
+    depositReductionResult.value = null
+  }
+}
+
+async function calculateDepositReduction() {
+  if (!currentMember.value || formData.deposit <= 0) {
+    depositReductionResult.value = null
+    return
+  }
+
+  calculatingReduction.value = true
+  try {
+    const result = await memberStore.calculateDepositReductionForMember({
+      memberId: currentMember.value.id,
+      originalDeposit: formData.deposit
+    })
+    depositReductionResult.value = result
+  } catch (e) {
+    console.error('计算押金减免失败', e)
+    depositReductionResult.value = null
+  } finally {
+    calculatingReduction.value = false
+  }
+}
+
+function getCreditLevelType(level: string) {
+  const map: Record<string, string> = {
+    S: 'success',
+    A: 'primary',
+    B: 'warning',
+    C: 'danger',
+    D: 'info'
+  }
+  return map[level] || 'info'
+}
+
 function resetForm() {
   isOutfitRental.value = false
   formData.dressId = ''
@@ -765,6 +913,8 @@ function resetForm() {
   dateRange.value = []
   availabilityCheckResult.value = null
   outfitStore.clearCurrent()
+  currentMember.value = null
+  depositReductionResult.value = null
   Object.assign(fitRiskAssessment, {
     riskLevel: 'low',
     score: 0,
@@ -900,5 +1050,55 @@ onMounted(() => {
 
 .detail-outfit-item:last-child {
   border-bottom: none;
+}
+
+.reduction-result {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.reduction-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+}
+
+.reduction-row span {
+  color: #606266;
+}
+
+.reduction-row strong {
+  color: #303133;
+}
+
+.text-success {
+  color: #67c23a !important;
+}
+
+.risk-warnings {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.warning-item {
+  font-size: 12px;
+  color: #e6a23c;
+  background: rgba(230, 162, 60, 0.1);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.reason-text {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #f56c6c;
+  background: rgba(245, 108, 108, 0.1);
+  padding: 6px 10px;
+  border-radius: 4px;
 }
 </style>

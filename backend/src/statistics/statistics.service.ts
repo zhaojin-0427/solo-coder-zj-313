@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { DressesService } from '../dresses/dresses.service';
 import { RentalsService } from '../rentals/rentals.service';
 import { ReturnsService } from '../returns/returns.service';
@@ -6,17 +6,24 @@ import { FittingsService } from '../fittings/fittings.service';
 import { DisputesService } from '../disputes/disputes.service';
 import { OutfitsService } from '../outfits/outfits.service';
 import { ConsignmentsService } from '../consignments/consignments.service';
+import { MembersService } from '../members/members.service';
 
 @Injectable()
 export class StatisticsService {
   constructor(
     private readonly dressesService: DressesService,
+    @Inject(forwardRef(() => RentalsService))
     private readonly rentalsService: RentalsService,
+    @Inject(forwardRef(() => ReturnsService))
     private readonly returnsService: ReturnsService,
     private readonly fittingsService: FittingsService,
+    @Inject(forwardRef(() => DisputesService))
     private readonly disputesService: DisputesService,
+    @Inject(forwardRef(() => OutfitsService))
     private readonly outfitsService: OutfitsService,
     private readonly consignmentsService: ConsignmentsService,
+    @Inject(forwardRef(() => MembersService))
+    private readonly membersService: MembersService,
   ) {}
 
   getOverview() {
@@ -154,6 +161,10 @@ export class StatisticsService {
 
   getDisputeStats() {
     return this.disputesService.getDisputeStats();
+  }
+
+  getMemberStats() {
+    return this.membersService.getMemberStats();
   }
 
   getOutfitStats() {

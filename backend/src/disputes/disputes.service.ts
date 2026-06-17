@@ -2,12 +2,15 @@ import { Injectable, NotFoundException, Inject, forwardRef } from '@nestjs/commo
 import { CreateDisputeDto, ReviewDisputeDto } from './dto/create-dispute.dto';
 import { DisputeRecord, DisputeTriggerReason, DeductionDetail } from './entities/dispute.entity';
 import { ReturnsService } from '../returns/returns.service';
+import { MembersService } from '../members/members.service';
 
 @Injectable()
 export class DisputesService {
   constructor(
     @Inject(forwardRef(() => ReturnsService))
     private readonly returnsService: ReturnsService,
+    @Inject(forwardRef(() => MembersService))
+    private readonly membersService: MembersService,
   ) {}
   private disputes: DisputeRecord[] = [
     {
@@ -125,6 +128,49 @@ export class DisputesService {
       );
     } catch (e) {
       // Ignore if return record not found
+    }
+
+    const member = this.membersService.findAll().find((m) => m.name === dispute.userName);
+    if (member) {
+      if (reviewDisputeDto.reviewStatus === 'approved') {
+        this.membersService.updateCredit(
+          member.id,
+          0,
+          '争议复核通过，维持原扣减',
+          dispute.id,
+          'dispute',
+        );
+        const adjustedDeduction = dispute.originalDeposit - dispute.currentRefundAmount;
+        if (adjustedDeduction !== dispute.originalTotalDeduction) {
+          const deductionDiff = adjustedDeduction - dispute.originalTotalDeduction;
+          if (deductionDiff > 0) {
+            this.membersService.updateCredit(
+              member.id,
+              -Math.floor(deductionDiff / 50),
+              `争议复核后增加扣减¥${deductionDiff}`,
+              dispute.id,
+              'dispute',
+            );
+          } else if (deductionDiff < 0) {
+            this.membersService.updateCredit(
+              member.id,
+              Math.floor(Math.abs(deductionDiff) / 50),
+              `争议复核后减少扣减¥${Math.abs(deductionDiff)}`,
+              dispute.id,
+              'dispute',
+            );
+          }
+        }
+      } else if (reviewDisputeDto.reviewStatus === 'rejected') {
+        const refundDiff = dispute.currentRefundAmount - dispute.originalRefundAmount;
+        this.membersService.updateCredit(
+          member.id,
+          Math.floor(refundDiff / 50) + 3,
+          '争议复核驳回，撤销原扣减并恢复信用',
+          dispute.id,
+          'dispute',
+        );
+      }
     }
 
     return dispute;

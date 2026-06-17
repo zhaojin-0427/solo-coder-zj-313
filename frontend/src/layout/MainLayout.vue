@@ -40,6 +40,10 @@
           <el-icon><DataLine /></el-icon>
           <span>数据统计</span>
         </el-menu-item>
+        <el-menu-item index="/members">
+          <el-icon><User /></el-icon>
+          <span>会员管理</span>
+        </el-menu-item>
       </el-menu>
     </el-aside>
     <el-container>
@@ -72,7 +76,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { Suitcase, Goods } from '@element-plus/icons-vue'
+import { Suitcase, Goods, User } from '@element-plus/icons-vue'
 
 const route = useRoute()
 
@@ -86,7 +90,8 @@ const currentPageTitle = computed(() => {
     '/feedbacks': '试穿反馈',
     '/returns': '归还验收',
     '/consignments': '寄售管理',
-    '/statistics': '数据统计'
+    '/statistics': '数据统计',
+    '/members': '会员管理'
   }
   return titles[route.path] || '首页'
 })

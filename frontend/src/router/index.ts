@@ -50,6 +50,12 @@ const router = createRouter({
           name: 'Statistics',
           component: () => import('../views/Statistics.vue'),
           meta: { title: '数据统计' }
+        },
+        {
+          path: 'members',
+          name: 'Members',
+          component: () => import('../views/MemberList.vue'),
+          meta: { title: '会员管理' }
         }
       ]
     }
